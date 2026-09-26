@@ -12,8 +12,7 @@ export const WEDDING = {
   resepsiVenue: "Jalan Puri Tawang Alun II No. 7 (depan Toyyib Jaya Mart)",
   akadMaps:
     "https://www.google.com/maps/search/?api=1&query=Masjid+Babul+Muttaqin+Jalan+Laremba",
-  resepsiMaps:
-    "https://www.google.com/maps/place/4%C2%B001'33.8%22S+122%C2%B031'16.3%22E/@-4.026054,122.518611,869m/data=!3m2!1e3!4b1!4m4!3m3!8m2!3d-4.026054!4d122.5211859?hl=id",
+  resepsiMaps: "https://maps.app.goo.gl/WQomHk9LmUHvuK949",
   groomParents: "Bapak Rafid Yasin & Ibu Sitti Nurbaya",
   brideParents: "Bapak Naim, S.Ip & Ibu Nursaida",
   igGroom: "https://www.instagram.com/cndra_purnama/",
