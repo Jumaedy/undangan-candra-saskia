@@ -9,7 +9,7 @@ export const Route = createFileRoute("/kelola")({
 });
 
 const GUEST_KEY = "undangan-tamu-lokal";
-const SANDI = "safarmoramo";
+const SANDI = "istigfar'8888";
 const PINTU_KEY = "undangan-pintu";
 
 type Guest = { id: number; name: string };
