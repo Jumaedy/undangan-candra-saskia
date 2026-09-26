@@ -59,6 +59,34 @@ function ThemeSwitch({
   );
 }
 
+function FallingLeaves({ className }: { className?: string }) {
+  const leaves = [
+    { left: "7%", delay: "0s", dur: "22s", size: 10, drift: "14px" },
+    { left: "23%", delay: "7s", dur: "26s", size: 8, drift: "-12px" },
+    { left: "41%", delay: "13s", dur: "21s", size: 11, drift: "16px" },
+    { left: "58%", delay: "4s", dur: "24s", size: 9, drift: "-10px" },
+    { left: "76%", delay: "10s", dur: "23s", size: 8, drift: "12px" },
+    { left: "90%", delay: "16s", dur: "25s", size: 10, drift: "-14px" },
+  ];
+  return (
+    <div className={cn("pointer-events-none overflow-hidden", className)} aria-hidden>
+      {leaves.map((leaf) => (
+        <i
+          key={leaf.left + leaf.delay}
+          className="leaf-fall fa-solid fa-leaf absolute text-gold/75"
+          style={{
+            left: leaf.left,
+            fontSize: leaf.size,
+            ["--delay" as string]: leaf.delay,
+            ["--dur" as string]: leaf.dur,
+            ["--drift" as string]: leaf.drift,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function LeafDivider() {
   return (
     <div className="my-6 flex items-center justify-center gap-3 text-gold" aria-hidden>
@@ -69,79 +97,19 @@ function LeafDivider() {
   );
 }
 
-const MOTIFS = [
-  { kind: "leaf", top: "6%", left: "4%", size: 22, delay: "0s", dur: "8s", p: 0.06, shift: 0.015, rot: -18 },
-  { kind: "leaf", top: "18%", left: "88%", size: 16, delay: "1.2s", dur: "11s", p: 0.12, shift: -0.02, rot: 24 },
-  { kind: "leaf", top: "34%", left: "7%", size: 14, delay: "0.4s", dur: "9s", p: 0.09, shift: 0.03, rot: -8 },
-  { kind: "butterfly", top: "12%", left: "78%", size: 28, delay: "0.6s", dur: "10s", p: 0.16, shift: -0.04, rot: 8 },
-  { kind: "leaf", top: "48%", left: "92%", size: 20, delay: "2s", dur: "12s", p: 0.07, shift: 0.01, rot: 16 },
-  { kind: "butterfly", top: "58%", left: "6%", size: 24, delay: "1.5s", dur: "13s", p: 0.18, shift: 0.025, rot: -6 },
-  { kind: "leaf", top: "72%", left: "84%", size: 15, delay: "0.8s", dur: "9.5s", p: 0.1, shift: -0.018, rot: 30 },
-  { kind: "leaf", top: "84%", left: "8%", size: 18, delay: "2.4s", dur: "11s", p: 0.05, shift: 0.02, rot: -24 },
-  { kind: "butterfly", top: "90%", left: "70%", size: 22, delay: "0.2s", dur: "14s", p: 0.14, shift: -0.03, rot: 12 },
-] as const;
-
-function Butterfly({ size }: { size: number }) {
-  return (
-    <svg width={size} height={size * 0.72} viewBox="0 0 64 46" fill="none" aria-hidden>
-      <g className="wing">
-        <path d="M32 24C24 6 6 4 4 18c-2 12 12 18 28 8z" fill="#d4af37" fillOpacity="0.9" />
-        <path d="M32 24C40 6 58 4 60 18c2 12-12 18-28 8z" fill="#f3e6c0" fillOpacity="0.85" />
-      </g>
-      <path d="M32 10v28" stroke="#05281e" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
 function Garden() {
-  return (
-    <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-hidden>
-      <div
-        className="glow-orb motif-shift absolute top-[8%] -left-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(212,175,55,0.35),transparent_68%)] blur-md"
-        style={{ ["--p" as string]: 0.04, ["--shift" as string]: 0.01 }}
-      />
-      <div
-        className="glow-orb motif-shift absolute top-[46%] -right-20 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(46,180,120,0.28),transparent_70%)] blur-md"
-        style={{ ["--p" as string]: 0.08, ["--shift" as string]: -0.012, animationDelay: "1.5s" }}
-      />
-      {MOTIFS.map((m, i) => (
-        <div
-          key={i}
-          className="motif-shift absolute"
-          style={{
-            top: m.top,
-            left: m.left,
-            ["--p" as string]: m.p,
-            ["--shift" as string]: m.shift,
-          }}
-        >
-          <div
-            className="motif-float text-gold drop-shadow-[0_6px_10px_rgba(0,0,0,0.25)]"
-            style={{
-              ["--delay" as string]: m.delay,
-              ["--dur" as string]: m.dur,
-              ["--rot" as string]: `${m.rot}deg`,
-            }}
-          >
-            {m.kind === "leaf" ? (
-              <i className="fa-solid fa-leaf" style={{ fontSize: m.size }} />
-            ) : (
-              <Butterfly size={m.size} />
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  return <FallingLeaves className="fixed inset-0 z-[1]" />;
 }
 
 export function Invitation({ guest }: { guest: string }) {
   const [opened, setOpened] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [birdsOn, setBirdsOn] = useState(false);
   const [theme, setTheme] = useState<ThemeId>("emerald");
   const audioRef = useRef<HTMLAudioElement>(null);
-  const count = useCountdown(WEDDING.iso);
+  const birdsRef = useRef<HTMLAudioElement>(null);
+  const count = useCountdown(WEDDING.resepsiIso);
 
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [name, setName] = useState("");
@@ -161,8 +129,21 @@ export function Invitation({ guest }: { guest: string }) {
   }, []);
 
   useEffect(() => {
-    AOS.init({ once: true, duration: 850, easing: "ease-out-cubic", offset: 40 });
-  }, []);
+    if (!opened) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const id = window.setTimeout(() => {
+      AOS.init({
+        once: true,
+        duration: 1000,
+        easing: "ease-out-cubic",
+        offset: 48,
+        disable: reduce,
+      });
+      AOS.refresh();
+    }, 150);
+    setWishes(loadWishes());
+    return () => window.clearTimeout(id);
+  }, [opened]);
 
   useEffect(() => {
     if (!opened) return;
@@ -185,6 +166,18 @@ export function Invitation({ guest }: { guest: string }) {
   function pilihTema(next: ThemeId) {
     setTheme(next);
     localStorage.setItem("undangan-tema", next);
+  }
+
+  function toggleBirds() {
+    const birds = birdsRef.current;
+    if (!birds) return;
+    if (birds.paused) {
+      birds.volume = 0.16;
+      void birds.play().then(() => setBirdsOn(true)).catch(() => setBirdsOn(false));
+    } else {
+      birds.pause();
+      setBirdsOn(false);
+    }
   }
 
   function bukaUndangan() {
@@ -238,16 +231,10 @@ export function Invitation({ guest }: { guest: string }) {
     "/images/gallery/g5.jpg",
   ];
 
-  useEffect(() => {
-    if (opened) {
-      AOS.refresh();
-      setWishes(loadWishes());
-    }
-  }, [opened]);
-
   return (
     <div data-theme={theme} className="emerald-canvas relative min-h-svh font-sans text-[var(--page-ink)]">
       <audio ref={audioRef} src="/audio/ar-rum-21-tilawah.mp3" preload="auto" loop />
+      <audio ref={birdsRef} src="/audio/birds.mp3" preload="auto" loop />
 
       {/* ===== 1. COVER / WELCOME (kunci scroll) ===== */}
       {!coverGone && (
@@ -262,7 +249,16 @@ export function Invitation({ guest }: { guest: string }) {
             alt=""
             className="absolute inset-0 h-full w-full bg-[#c9d4c4] object-cover object-[center_20%] md:object-contain"
           />
+          <FallingLeaves className="absolute inset-0" />
           <div className="absolute inset-0 bg-linear-to-t from-[#041c16]/95 via-[#063528]/45 to-[#041c16]/15" />
+          <button
+            type="button"
+            onClick={toggleBirds}
+            className="absolute top-4 right-4 z-20 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/35 bg-black/30 text-[#f3e6c0]"
+            aria-label={birdsOn ? "Hentikan suara burung" : "Aktifkan suara burung"}
+          >
+            <i className={birdsOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"} />
+          </button>
           <div className="relative z-10 w-full max-w-md px-6 pb-16 text-center text-broken">
             <p className="font-serif text-[11px] tracking-[0.45em] text-gold uppercase">
               The Wedding of
@@ -315,7 +311,7 @@ export function Invitation({ guest }: { guest: string }) {
         </section>
 
         <section className="relative px-5 pt-6 pb-14">
-          <div className="mx-auto max-w-lg text-center" data-aos="fade-up">
+          <div className="mx-auto max-w-lg text-center" data-aos="fade" data-aos-duration="1200">
             <p className="font-arabic text-xl leading-relaxed text-[var(--page-verse)]" dir="rtl">
               {WEDDING.arabic}
             </p>
@@ -327,7 +323,7 @@ export function Invitation({ guest }: { guest: string }) {
             </p>
             <LeafDivider />
             <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">
-              Menghitung Hari
+              Menuju Resepsi
             </p>
             <div className="grid grid-cols-4 gap-2">
               {(
@@ -356,14 +352,18 @@ export function Invitation({ guest }: { guest: string }) {
         <section className="px-5 py-16">
           <p
             className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade-up"
+            data-aos="fade"
+            data-aos-duration="900"
           >
             The Beloved
           </p>
           <div className="mx-auto grid max-w-3xl gap-10 md:grid-cols-2 md:gap-8">
             <article
               className="rounded-3xl bg-broken p-6 text-center shadow-[0_12px_40px_rgba(90,110,88,0.08)]"
-              data-aos="slide-right"
+              data-aos="fade-right"
+              data-aos-anchor-placement="top-center"
+              data-aos-duration="1100"
+              data-aos-offset="0"
             >
               <div className="mx-auto h-44 w-36 overflow-hidden rounded-t-full border-4 border-gold/40">
                 <img src="/images/groom.jpg" alt="Candra Purnama" className="h-full w-full object-cover object-top" />
@@ -386,7 +386,10 @@ export function Invitation({ guest }: { guest: string }) {
             </article>
             <article
               className="rounded-3xl bg-broken p-6 text-center shadow-[0_12px_40px_rgba(90,110,88,0.08)]"
-              data-aos="slide-left"
+              data-aos="fade-left"
+              data-aos-anchor-placement="top-center"
+              data-aos-duration="1100"
+              data-aos-offset="0"
             >
               <div className="mx-auto h-44 w-36 overflow-hidden rounded-t-full border-4 border-gold/40">
                 <img
@@ -418,34 +421,30 @@ export function Invitation({ guest }: { guest: string }) {
         <section className="px-5 py-16">
           <p
             className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade-up"
+            data-aos="fade"
+            data-aos-duration="900"
           >
             Save The Date
           </p>
           <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
             <div
               className="rounded-3xl border border-gold/20 bg-cream px-6 py-8 text-center"
-              data-aos="fade-up"
+              data-aos="fade-right"
+              data-aos-anchor-placement="top-center"
+              data-aos-duration="1000"
+              data-aos-offset="0"
             >
               <i className="fa-solid fa-moon mb-3 text-gold" />
               <h3 className="font-serif text-2xl text-sage-dark">Akad Nikah</h3>
               <p className="mt-3 text-sm text-ink">{WEDDING.dateLabel}</p>
               <p className="text-sm text-muted">{WEDDING.akadTime}</p>
-              <p className="mt-3 text-pretty text-sm text-ink">{WEDDING.akadVenue}</p>
-              <a
-                href={WEDDING.akadMaps}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken"
-              >
-                <i className="fa-solid fa-location-dot" />
-                Google Maps
-              </a>
             </div>
             <div
               className="rounded-3xl border border-gold/20 bg-cream px-6 py-8 text-center"
-              data-aos="fade-up"
-              data-aos-delay="120"
+              data-aos="fade-left"
+              data-aos-anchor-placement="top-center"
+              data-aos-duration="1000"
+              data-aos-offset="0"
             >
               <i className="fa-solid fa-champagne-glasses mb-3 text-gold" />
               <h3 className="font-serif text-2xl text-sage-dark">Resepsi</h3>
@@ -469,7 +468,8 @@ export function Invitation({ guest }: { guest: string }) {
         <section className="px-5 py-16">
           <p
             className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade-up"
+            data-aos="fade"
+            data-aos-duration="900"
           >
             Our Gallery
           </p>
@@ -481,8 +481,10 @@ export function Invitation({ guest }: { guest: string }) {
                   "overflow-hidden rounded-2xl",
                   i === 0 && "col-span-2 sm:col-span-2 sm:row-span-2",
                 )}
-                data-aos="zoom-in"
-                data-aos-delay={i * 60}
+                data-aos={i === 0 ? "fade" : i % 2 === 0 ? "fade-left" : "fade-right"}
+                data-aos-anchor-placement="top-center"
+                data-aos-duration="1000"
+                data-aos-offset="0"
               >
                 <img
                   src={src}
@@ -496,7 +498,12 @@ export function Invitation({ guest }: { guest: string }) {
 
         {/* 6. RSVP */}
         <section className="px-5 py-16">
-          <div className="mx-auto max-w-lg" data-aos="fade-up">
+          <div
+            className="mx-auto max-w-lg"
+            data-aos="fade"
+            data-aos-duration="1100"
+            data-aos-anchor-placement="top-center"
+          >
             <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">
               RSVP & Ucapan
             </p>

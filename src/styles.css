@@ -69,6 +69,32 @@ body:has([data-theme="ivory"]) {
   color: #3d3a32;
 }
 
+@keyframes leaf-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate3d(var(--drift, 18px), 108vh, 0) rotate(180deg);
+    opacity: 0.1;
+  }
+}
+
+.leaf-fall {
+  animation: leaf-fall var(--dur, 14s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+[data-aos="fade-right"] {
+  transform: translate3d(-28px, 0, 0);
+}
+[data-aos="fade-left"] {
+  transform: translate3d(28px, 0, 0);
+}
+
 @keyframes vinyl-spin {
   to {
     transform: rotate(360deg);
@@ -168,7 +194,8 @@ body:has([data-theme="ivory"]) {
   .cover-leave,
   .motif-float,
   .wing,
-  .glow-orb {
+  .glow-orb,
+  .leaf-fall {
     animation: none;
   }
 

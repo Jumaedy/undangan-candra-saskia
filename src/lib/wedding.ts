@@ -5,6 +5,7 @@ export const WEDDING = {
   brideFull: "Saskia",
   dateLabel: "Kamis, 01 Oktober 2026",
   iso: "2026-10-01T10:00:00+08:00",
+  resepsiIso: "2026-10-01T18:00:00+08:00",
   akadTime: "Pukul 10.00 WITA",
   resepsiTime: "Pukul 18.00 WITA",
   akadVenue: "Jalan Laremba (depan Masjid Babul Muttaqin)",
@@ -15,8 +16,8 @@ export const WEDDING = {
     "https://www.google.com/maps/place/4%C2%B001'33.8%22S+122%C2%B031'16.3%22E/@-4.026054,122.518611,869m/data=!3m2!1e3!4b1!4m4!3m3!8m2!3d-4.026054!4d122.5211859?hl=id",
   groomParents: "Bapak Rafid Yasin & Ibu Sitti Nurbaya",
   brideParents: "Bapak Naim, S.Ip & Ibu Nursaida",
-  igGroom: "https://instagram.com/",
-  igBride: "https://instagram.com/",
+  igGroom: "https://www.instagram.com/cndra_purnama/",
+  igBride: "https://www.instagram.com/cndra_purnama/",
   credit: "Safar Moramo",
   arabic:
     "وَمِنْ ءَايَاتِهِ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً ۚ إِنَّ فِى ذٰلِكَ لَءَايَاتٍ لِّقَوْمٍ يَتَفَكَّرُونَ",
