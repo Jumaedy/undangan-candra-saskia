@@ -1,6 +1,8 @@
+import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, loadWishes, saveWishes, type Wish } from "@/lib/wedding";
+import { WEDDING, type Wish } from "@/lib/wedding";
+import { addWish, listWishes } from "@/lib/undangan.functions";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -101,7 +103,14 @@ function Garden() {
   return <FallingLeaves className="fixed inset-0 z-[1]" />;
 }
 
-export function Invitation({ guest }: { guest: string }) {
+export function Invitation({
+  guest,
+  settings = WEDDING,
+}: {
+  guest: string;
+  settings?: typeof WEDDING;
+}) {
+  const info = settings;
   const [opened, setOpened] = useState(false);
   const [coverGone, setCoverGone] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -109,7 +118,7 @@ export function Invitation({ guest }: { guest: string }) {
   const [theme, setTheme] = useState<ThemeId>("emerald");
   const audioRef = useRef<HTMLAudioElement>(null);
   const birdsRef = useRef<HTMLAudioElement>(null);
-  const count = useCountdown(WEDDING.resepsiIso);
+  const count = useCountdown(info.resepsiIso);
 
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [name, setName] = useState("");
@@ -141,7 +150,8 @@ export function Invitation({ guest }: { guest: string }) {
       });
       AOS.refresh();
     }, 150);
-    setWishes(loadWishes());
+    setWishes([]);
+    void listWishes().then(setWishes).catch(() => {});
     return () => window.clearTimeout(id);
   }, [opened]);
 
@@ -202,21 +212,13 @@ export function Invitation({ guest }: { guest: string }) {
     }
   }
 
-  function kirimUcapan(e: React.FormEvent) {
+  async function kirimUcapan(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !message.trim()) return;
-    const next: Wish[] = [
-      {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        attend,
-        message: message.trim(),
-        at: Date.now(),
-      },
-      ...wishes,
-    ];
-    setWishes(next);
-    saveWishes(next);
+    const saved = await addWish({
+      data: { name: name.trim(), attend, message: message.trim() },
+    });
+    setWishes((prev) => [saved, ...prev]);
     setName("");
     setMessage("");
     setAttend("Hadir");
@@ -264,15 +266,15 @@ export function Invitation({ guest }: { guest: string }) {
               The Wedding of
             </p>
             <h1 className="mt-3 font-serif text-4xl leading-tight text-balance sm:text-5xl">
-              {WEDDING.groom}
+              {info.groom}
               <span className="mt-1 block font-serif text-xl font-normal italic text-gold">
                 &
               </span>
-              {WEDDING.bride}
+              {info.bride}
             </h1>
             <p className="mt-6 text-xs tracking-[0.2em] text-broken/80 uppercase">Kepada Yth.</p>
             <p className="mt-1 font-serif text-lg text-gold">{guest}</p>
-            <p className="mt-2 text-sm text-broken/75">{WEDDING.dateLabel}</p>
+            <p className="mt-2 text-sm text-broken/75">{info.dateLabel}</p>
             <div className="mt-6 flex justify-center">
               <ThemeSwitch theme={theme} onChange={pilihTema} />
             </div>
@@ -304,22 +306,22 @@ export function Invitation({ guest }: { guest: string }) {
               We Are Getting Married
             </p>
             <h2 className="mt-2 font-serif text-4xl text-balance text-[var(--page-ink)] sm:text-5xl">
-              {WEDDING.groom} & {WEDDING.bride}
+              {info.groom} & {info.bride}
             </h2>
-            <p className="mt-2 text-sm text-[var(--page-soft)]">{WEDDING.dateLabel}</p>
+            <p className="mt-2 text-sm text-[var(--page-soft)]">{info.dateLabel}</p>
           </div>
         </section>
 
         <section className="relative px-5 pt-6 pb-14">
           <div className="mx-auto max-w-lg text-center" data-aos="fade" data-aos-duration="1200">
             <p className="font-arabic text-xl leading-relaxed text-[var(--page-verse)]" dir="rtl">
-              {WEDDING.arabic}
+              {info.arabic}
             </p>
             <p className="mt-5 text-pretty text-sm leading-relaxed text-[var(--page-soft)] italic">
-              “{WEDDING.meaning}”
+              “{info.meaning}”
             </p>
             <p className="mt-3 font-serif text-xs tracking-[0.2em] text-gold uppercase">
-              {WEDDING.ref}
+              {info.ref}
             </p>
             <LeafDivider />
             <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">
@@ -368,14 +370,14 @@ export function Invitation({ guest }: { guest: string }) {
               <div className="mx-auto h-44 w-36 overflow-hidden rounded-t-full border-4 border-gold/40">
                 <img src="/images/groom.jpg" alt="Candra Purnama" className="h-full w-full object-cover object-top" />
               </div>
-              <h3 className="mt-5 font-serif text-3xl text-sage-dark">{WEDDING.groomFull}</h3>
+              <h3 className="mt-5 font-serif text-3xl text-sage-dark">{info.groomFull}</h3>
               <p className="mt-2 text-sm text-muted">
                 Putra dari
                 <br />
-                <span className="text-ink">{WEDDING.groomParents}</span>
+                <span className="text-ink">{info.groomParents}</span>
               </p>
               <a
-                href={WEDDING.igGroom}
+                href={info.igGroom}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
@@ -398,14 +400,14 @@ export function Invitation({ guest }: { guest: string }) {
                   className="h-full w-full object-cover object-top"
                 />
               </div>
-              <h3 className="mt-5 font-serif text-3xl text-sage-dark">{WEDDING.brideFull}</h3>
+              <h3 className="mt-5 font-serif text-3xl text-sage-dark">{info.brideFull}</h3>
               <p className="mt-2 text-sm text-muted">
                 Putri dari
                 <br />
-                <span className="text-ink">{WEDDING.brideParents}</span>
+                <span className="text-ink">{info.brideParents}</span>
               </p>
               <a
-                href={WEDDING.igBride}
+                href={info.igBride}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
@@ -436,8 +438,8 @@ export function Invitation({ guest }: { guest: string }) {
             >
               <i className="fa-solid fa-moon mb-3 text-gold" />
               <h3 className="font-serif text-2xl text-sage-dark">Akad Nikah</h3>
-              <p className="mt-3 text-sm text-ink">{WEDDING.dateLabel}</p>
-              <p className="text-sm text-muted">{WEDDING.akadTime}</p>
+              <p className="mt-3 text-sm text-ink">{info.dateLabel}</p>
+              <p className="text-sm text-muted">{info.akadTime}</p>
             </div>
             <div
               className="rounded-3xl border border-gold/20 bg-cream px-6 py-8 text-center"
@@ -448,11 +450,11 @@ export function Invitation({ guest }: { guest: string }) {
             >
               <i className="fa-solid fa-champagne-glasses mb-3 text-gold" />
               <h3 className="font-serif text-2xl text-sage-dark">Resepsi</h3>
-              <p className="mt-3 text-sm text-ink">{WEDDING.dateLabel}</p>
-              <p className="text-sm text-muted">{WEDDING.resepsiTime}</p>
-              <p className="mt-3 text-pretty text-sm text-ink">{WEDDING.resepsiVenue}</p>
+              <p className="mt-3 text-sm text-ink">{info.dateLabel}</p>
+              <p className="text-sm text-muted">{info.resepsiTime}</p>
+              <p className="mt-3 text-pretty text-sm text-ink">{info.resepsiVenue}</p>
               <a
-                href={WEDDING.resepsiMaps}
+                href={info.resepsiMaps}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken"
@@ -565,12 +567,15 @@ export function Invitation({ guest }: { guest: string }) {
             berkenan hadir dan memberikan doa restu.
           </p>
           <p className="mt-6 font-serif text-2xl">
-            {WEDDING.groom} & {WEDDING.bride}
+            {info.groom} & {info.bride}
           </p>
           <LeafDivider />
           <p className="text-[11px] tracking-[0.22em] text-gold uppercase">
-            by {WEDDING.credit}
+            by {info.credit}
           </p>
+          <Link to="/kelola" className="mt-4 inline-block text-[10px] tracking-[0.18em] text-broken/50 uppercase">
+            Kelola
+          </Link>
         </footer>
       </main>
 
