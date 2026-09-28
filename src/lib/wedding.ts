@@ -48,3 +48,45 @@ export function loadWishes(): Wish[] {
 export function saveWishes(wishes: Wish[]) {
   localStorage.setItem(KEY, JSON.stringify(wishes));
 }
+
+const WISH_STORE = "https://crudcrud.com/api/5294fc3acdb84b7ea4d5f7d3ce57183d/wishes";
+
+function asWish(row: { _id?: string; name?: string; message?: string; attend?: string; at?: number }): Wish | null {
+  if (row.attend !== "Hadir" && row.attend !== "Tidak Hadir") return null;
+  const name = String(row.name ?? "").trim();
+  const message = String(row.message ?? "").trim();
+  if (!name || !message) return null;
+  return {
+    id: String(row._id ?? crypto.randomUUID()),
+    name: name.slice(0, 80),
+    message: message.slice(0, 500),
+    attend: row.attend,
+    at: typeof row.at === "number" ? row.at : Date.now(),
+  };
+}
+
+export async function fetchSharedWishes(): Promise<Wish[]> {
+  const res = await fetch(WISH_STORE);
+  if (!res.ok) throw new Error("Daftar ucapan belum terbaca.");
+  const rows = (await res.json()) as Array<Parameters<typeof asWish>[0]>;
+  return rows
+    .map((row) => asWish(row))
+    .filter((row): row is Wish => Boolean(row))
+    .sort((a, b) => b.at - a.at);
+}
+
+export async function postSharedWish(data: {
+  name: string;
+  message: string;
+  attend: Wish["attend"];
+}): Promise<Wish> {
+  const at = Date.now();
+  const res = await fetch(WISH_STORE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: data.name, message: data.message, attend: data.attend, at }),
+  });
+  if (!res.ok) throw new Error("Ucapan belum tersimpan.");
+  const row = (await res.json()) as { _id?: string };
+  return { id: String(row._id ?? crypto.randomUUID()), name: data.name, message: data.message, attend: data.attend, at };
+}
