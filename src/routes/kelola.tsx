@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { getSettings, pinStatus } from "@/lib/undangan.functions";
-import { WEDDING, fetchSharedWishes, loadWishes, type Wish } from "@/lib/wedding";
+import { WEDDING, deleteSharedWish, fetchSharedWishes, loadWishes, updateSharedWish, type Wish } from "@/lib/wedding";
 import type { InvitationSettings } from "@/lib/undangan.functions";
 
 export const Route = createFileRoute("/kelola")({
@@ -50,9 +50,8 @@ function Kelola() {
       .then(async () => {
         window.clearTimeout(timer);
         setServer("hidup");
-        const [nextSettings, nextWishes] = await Promise.all([getSettings(), listWishes()]);
+        const nextSettings = await getSettings();
         setSettings(nextSettings);
-        if (nextWishes.length > 0) setWishes(nextWishes);
       })
       .catch(() => {
         window.clearTimeout(timer);
@@ -64,7 +63,7 @@ function Kelola() {
   useEffect(() => {
     if (!terbuka) return;
     setWishNote("");
-    void listWishes()
+    void fetchSharedWishes()
       .then((rows) => {
         setWishes(rows);
         setWishNote("");
@@ -207,6 +206,32 @@ function Kelola() {
     setNotice("Antrian WhatsApp dibatalkan.");
   }
 
+  async function ubahUcapan(wish: Wish) {
+    const baru = window.prompt("Ubah ucapan:", wish.message);
+    if (baru === null) return;
+    const message = baru.trim();
+    if (!message || message === wish.message) return;
+    const nextWish = { ...wish, message };
+    try {
+      await updateSharedWish(nextWish);
+      setWishes((prev) => prev.map((item) => (item.id === wish.id ? nextWish : item)));
+      setNotice("Ucapan diubah.");
+    } catch {
+      setNotice("Ucapan belum berubah. Coba lagi.");
+    }
+  }
+
+  async function hapusUcapan(wish: Wish) {
+    if (!window.confirm(`Hapus ucapan ${wish.name}?`)) return;
+    try {
+      await deleteSharedWish(wish.id);
+      setWishes((prev) => prev.filter((item) => item.id !== wish.id));
+      setNotice("Ucapan dihapus.");
+    } catch {
+      setNotice("Ucapan belum terhapus. Coba lagi.");
+    }
+  }
+
   return (
     <Shell>
       {!terbuka ? (
@@ -281,10 +306,18 @@ function Kelola() {
                 Antrian WhatsApp: <strong>{waQueue.length}</strong> tersisa
               </p>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={lanjutKirimWA} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
+                <button
+                  type="button"
+                  onClick={lanjutKirimWA}
+                  className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                >
                   Lanjut Kirim
                 </button>
-                <button type="button" onClick={batalkanAntrian} className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]">
+                <button
+                  type="button"
+                  onClick={batalkanAntrian}
+                  className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]"
+                >
                   Batal
                 </button>
               </div>
@@ -316,10 +349,18 @@ function Kelola() {
                   </label>
                   {selected.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={mulaiWAMassal} className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]">
+                      <button
+                        type="button"
+                        onClick={mulaiWAMassal}
+                        className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
+                      >
                         WA Massal ({selected.length})
                       </button>
-                      <button type="button" onClick={hapusMassal} className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300">
+                      <button
+                        type="button"
+                        onClick={hapusMassal}
+                        className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300"
+                      >
                         Hapus Massal
                       </button>
                     </div>
@@ -327,7 +368,9 @@ function Kelola() {
                 </div>
               )}
               <ul className="mt-4 space-y-3">
-                {guests.length === 0 && <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>}
+                {guests.length === 0 && (
+                  <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>
+                )}
                 {guests.map((guest) => (
                   <li key={guest.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
                     <div className="flex items-start gap-3">
@@ -343,16 +386,32 @@ function Kelola() {
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => editGuest(guest.id)} className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]">
+                      <button
+                        type="button"
+                        onClick={() => editGuest(guest.id)}
+                        className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]"
+                      >
                         Edit
                       </button>
-                      <button type="button" onClick={() => void salin(guest.name)} className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]">
+                      <button
+                        type="button"
+                        onClick={() => void salin(guest.name)}
+                        className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]"
+                      >
                         Salin
                       </button>
-                      <button type="button" onClick={() => wa(guest.name)} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
+                      <button
+                        type="button"
+                        onClick={() => wa(guest.name)}
+                        className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                      >
                         WhatsApp
                       </button>
-                      <button type="button" onClick={() => hapusSatu(guest.id)} className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]">
+                      <button
+                        type="button"
+                        onClick={() => hapusSatu(guest.id)}
+                        className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]"
+                      >
                         Hapus
                       </button>
                     </div>
@@ -386,7 +445,9 @@ function Kelola() {
               </button>
               {wishNote && <p className="mt-3 text-sm text-[#f3e6c0]">{wishNote}</p>}
               <ul className="mt-4 space-y-3">
-                {wishes.length === 0 && !wishNote && <li className="text-sm text-[#d7e6de]">Belum ada ucapan dari tamu.</li>}
+                {wishes.length === 0 && !wishNote && (
+                  <li className="text-sm text-[#d7e6de]">Belum ada ucapan dari tamu.</li>
+                )}
                 {wishes.map((wish) => (
                   <li key={wish.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
                     <div className="flex items-center justify-between gap-2">
@@ -394,6 +455,14 @@ function Kelola() {
                       <span className="text-[10px] tracking-wide text-[#d4af37] uppercase">{wish.attend}</span>
                     </div>
                     <p className="mt-1 text-sm text-[#d7e6de]">{wish.message}</p>
+                    <div className="mt-3 flex gap-2">
+                      <button type="button" onClick={() => void ubahUcapan(wish)} className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]">
+                        Ubah
+                      </button>
+                      <button type="button" onClick={() => void hapusUcapan(wish)} className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]">
+                        Hapus
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
