@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { getSettings, listWishes, pinStatus } from "@/lib/undangan.functions";
-import { WEDDING, loadWishes, type Wish } from "@/lib/wedding";
+import { getSettings, pinStatus } from "@/lib/undangan.functions";
+import { WEDDING, fetchSharedWishes, loadWishes, type Wish } from "@/lib/wedding";
 import type { InvitationSettings } from "@/lib/undangan.functions";
 
 export const Route = createFileRoute("/kelola")({
