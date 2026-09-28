@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, loadWishes, saveWishes, type Wish } from "@/lib/wedding";
-import { addWish, listWishes } from "@/lib/undangan.functions";
+import { WEDDING, fetchSharedWishes, loadWishes, postSharedWish, saveWishes, type Wish } from "@/lib/wedding";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -153,7 +152,7 @@ export function Invitation({
       AOS.refresh();
     }, 150);
     setWishes(loadWishes());
-    void listWishes()
+    void fetchSharedWishes()
       .then((remote) => {
         setWishes(remote);
         saveWishes(remote);
@@ -226,8 +225,10 @@ export function Invitation({
     setSent(false);
     setSendError("");
     try {
-      const saved = await addWish({
-        data: { name: name.trim(), attend, message: message.trim() },
+      const saved = await postSharedWish({
+        name: name.trim(),
+        attend,
+        message: message.trim(),
       });
       const next = [saved, ...wishes.filter((item) => item.id !== saved.id)];
       setWishes(next);
@@ -281,14 +282,10 @@ export function Invitation({
             <i className={birdsOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"} />
           </button>
           <div className="relative z-10 w-full max-w-md px-6 pb-16 text-center text-broken">
-            <p className="font-serif text-[11px] tracking-[0.45em] text-gold uppercase">
-              The Wedding of
-            </p>
+            <p className="font-serif text-[11px] tracking-[0.45em] text-gold uppercase">The Wedding of</p>
             <h1 className="mt-3 font-serif text-4xl leading-tight text-balance sm:text-5xl">
               {info.groom}
-              <span className="mt-1 block font-serif text-xl font-normal italic text-gold">
-                &
-              </span>
+              <span className="mt-1 block font-serif text-xl font-normal italic text-gold">&</span>
               {info.bride}
             </h1>
             <p className="mt-6 text-xs tracking-[0.2em] text-broken/80 uppercase">Kepada Yth.</p>
@@ -319,9 +316,7 @@ export function Invitation({
             className="hero-fade mx-auto h-[64vh] w-full object-cover object-[center_8%] md:h-[74vh] md:w-auto md:max-w-3xl md:object-contain"
           />
           <div className="relative z-10 -mt-28 px-5 pb-2 text-center">
-            <p className="font-serif text-[11px] tracking-[0.4em] text-gold uppercase">
-              We Are Getting Married
-            </p>
+            <p className="font-serif text-[11px] tracking-[0.4em] text-gold uppercase">We Are Getting Married</p>
             <h2 className="mt-2 font-serif text-4xl text-balance text-[var(--page-ink)] sm:text-5xl">
               {info.groom} & {info.bride}
             </h2>
@@ -334,16 +329,10 @@ export function Invitation({
             <p className="font-arabic text-xl leading-relaxed text-[var(--page-verse)]" dir="rtl">
               {info.arabic}
             </p>
-            <p className="mt-5 text-pretty text-sm leading-relaxed text-[var(--page-soft)] italic">
-              “{info.meaning}”
-            </p>
-            <p className="mt-3 font-serif text-xs tracking-[0.2em] text-gold uppercase">
-              {info.ref}
-            </p>
+            <p className="mt-5 text-pretty text-sm leading-relaxed text-[var(--page-soft)] italic">“{info.meaning}”</p>
+            <p className="mt-3 font-serif text-xs tracking-[0.2em] text-gold uppercase">{info.ref}</p>
             <LeafDivider />
-            <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">
-              Menuju Resepsi
-            </p>
+            <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">Menuju Resepsi</p>
             <div className="grid grid-cols-4 gap-2">
               {(
                 [
@@ -353,14 +342,9 @@ export function Invitation({
                   ["Detik", count.detik],
                 ] as const
               ).map(([label, n]) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-gold/25 bg-cream px-1 py-4 shadow-sm"
-                >
+                <div key={label} className="rounded-2xl border border-gold/25 bg-cream px-1 py-4 shadow-sm">
                   <div className="font-serif text-2xl tabular-nums text-sage-dark">{n}</div>
-                  <div className="mt-1 text-[10px] tracking-widest text-muted uppercase">
-                    {label}
-                  </div>
+                  <div className="mt-1 text-[10px] tracking-widest text-muted uppercase">{label}</div>
                 </div>
               ))}
             </div>
@@ -368,11 +352,7 @@ export function Invitation({
         </section>
 
         <section className="px-5 py-16">
-          <p
-            className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade"
-            data-aos-duration="900"
-          >
+          <p className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
             The Beloved
           </p>
           <div className="mx-auto grid max-w-3xl gap-10 md:grid-cols-2 md:gap-8">
@@ -392,12 +372,7 @@ export function Invitation({
                 <br />
                 <span className="text-ink">{info.groomParents}</span>
               </p>
-              <a
-                href={info.igGroom}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
-              >
+              <a href={info.igGroom} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage">
                 <i className="fa-brands fa-instagram" />
                 Instagram
               </a>
@@ -418,12 +393,7 @@ export function Invitation({
                 <br />
                 <span className="text-ink">{info.brideParents}</span>
               </p>
-              <a
-                href={info.igBride}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
-              >
+              <a href={info.igBride} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage">
                 <i className="fa-brands fa-instagram" />
                 Instagram
               </a>
@@ -432,11 +402,7 @@ export function Invitation({
         </section>
 
         <section className="px-5 py-16">
-          <p
-            className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade"
-            data-aos-duration="900"
-          >
+          <p className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
             Save The Date
           </p>
           <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
@@ -464,12 +430,7 @@ export function Invitation({
               <p className="mt-3 text-sm text-ink">{info.dateLabel}</p>
               <p className="text-sm text-muted">{info.resepsiTime}</p>
               <p className="mt-3 text-pretty text-sm text-ink">{info.resepsiVenue}</p>
-              <a
-                href={info.resepsiMaps}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken"
-              >
+              <a href={info.resepsiMaps} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken">
                 <i className="fa-solid fa-location-dot" />
                 Google Maps
               </a>
@@ -478,46 +439,28 @@ export function Invitation({
         </section>
 
         <section className="px-5 py-16">
-          <p
-            className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
-            data-aos="fade"
-            data-aos-duration="900"
-          >
+          <p className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
             Our Gallery
           </p>
           <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3">
             {gallery.map((src, i) => (
               <div
                 key={src}
-                className={cn(
-                  "overflow-hidden rounded-2xl",
-                  i === 0 && "col-span-2 sm:col-span-2 sm:row-span-2",
-                )}
+                className={cn("overflow-hidden rounded-2xl", i === 0 && "col-span-2 sm:col-span-2 sm:row-span-2")}
                 data-aos={i === 0 ? "fade" : i % 2 === 0 ? "fade-left" : "fade-right"}
                 data-aos-anchor-placement="top-center"
                 data-aos-duration="1000"
                 data-aos-offset="0"
               >
-                <img
-                  src={src}
-                  alt=""
-                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
-                />
+                <img src={src} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110" />
               </div>
             ))}
           </div>
         </section>
 
         <section className="px-5 py-16">
-          <div
-            className="mx-auto max-w-lg"
-            data-aos="fade"
-            data-aos-duration="1100"
-            data-aos-anchor-placement="top-center"
-          >
-            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">
-              RSVP & Ucapan
-            </p>
+          <div className="mx-auto max-w-lg" data-aos="fade" data-aos-duration="1100" data-aos-anchor-placement="top-center">
+            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">RSVP & Ucapan</p>
             <h3 className="mt-2 text-center font-serif text-3xl text-[var(--page-ink)]">Doa Restu</h3>
             <form onSubmit={kirimUcapan} className="mt-8 space-y-3">
               <input
@@ -563,13 +506,8 @@ export function Invitation({
                 {sendError}
               </p>
             )}
-
             <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
-              {wishes.length === 0 && (
-                <li className="text-center text-sm text-[var(--page-soft)]">
-                  Belum ada ucapan. Jadilah yang pertama.
-                </li>
-              )}
+              {wishes.length === 0 && <li className="text-center text-sm text-[var(--page-soft)]">Belum ada ucapan. Jadilah yang pertama.</li>}
               {wishes.map((w, index) => (
                 <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
                   <div className="flex items-center justify-between gap-2">
@@ -585,8 +523,7 @@ export function Invitation({
 
         <footer className="bg-sage-dark px-5 py-14 text-center text-broken">
           <p className="text-pretty text-sm italic text-broken/80">
-            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i
-            berkenan hadir dan memberikan doa restu.
+            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
           </p>
           <p className="mt-6 font-serif text-2xl">
             {info.groom} & {info.bride}
