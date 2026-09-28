@@ -123,6 +123,9 @@ export function Invitation({
   const [name, setName] = useState("");
   const [attend, setAttend] = useState<"Hadir" | "Tidak Hadir">("Hadir");
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   useEffect(() => {
     document.body.style.overflow = opened ? "" : "hidden";
@@ -152,7 +155,8 @@ export function Invitation({
     setWishes(loadWishes());
     void listWishes()
       .then((remote) => {
-        if (remote.length > 0) setWishes(remote);
+        setWishes(remote);
+        saveWishes(remote);
       })
       .catch(() => {});
     return () => window.clearTimeout(id);
@@ -215,25 +219,29 @@ export function Invitation({
     }
   }
 
-  function kirimUcapan(e: React.FormEvent) {
+  async function kirimUcapan(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !message.trim()) return;
-    const saved: Wish = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      attend,
-      message: message.trim(),
-      at: Date.now(),
-    };
-    const next = [saved, ...wishes];
-    setWishes(next);
-    saveWishes(next);
-    setName("");
-    setMessage("");
-    setAttend("Hadir");
-    void addWish({
-      data: { name: saved.name, attend: saved.attend, message: saved.message },
-    }).catch(() => {});
+    if (sending || !name.trim() || !message.trim()) return;
+    setSending(true);
+    setSent(false);
+    setSendError("");
+    try {
+      const saved = await addWish({
+        data: { name: name.trim(), attend, message: message.trim() },
+      });
+      const next = [saved, ...wishes.filter((item) => item.id !== saved.id)];
+      setWishes(next);
+      saveWishes(next);
+      setName("");
+      setMessage("");
+      setAttend("Hadir");
+      setSent(true);
+      window.setTimeout(() => setSent(false), 3400);
+    } catch {
+      setSendError("Belum terkirim. Periksa internet, lalu tekan Kirim lagi.");
+    } finally {
+      setSending(false);
+    }
   }
 
   const gallery = [
@@ -538,11 +546,23 @@ export function Invitation({
               />
               <button
                 type="submit"
-                className="min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-gold font-serif text-xs tracking-[0.28em] text-sage-dark uppercase"
+                disabled={sending}
+                className="min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-gold font-serif text-xs tracking-[0.28em] text-sage-dark uppercase shadow-sm transition duration-200 hover:scale-[1.02] hover:shadow-[0_12px_28px_rgba(212,175,55,0.38)] active:scale-[0.98] disabled:opacity-70"
               >
-                Kirim
+                {sending ? "Mengirim..." : "Kirim"}
               </button>
             </form>
+            {sent && (
+              <p className="wish-toast mt-4 flex items-center justify-center gap-2 rounded-2xl bg-sage px-4 py-3 text-sm text-broken" role="status">
+                <i className="fa-solid fa-circle-check text-gold" />
+                Doa restu berhasil terkirim. Terima kasih.
+              </p>
+            )}
+            {sendError && (
+              <p className="mt-4 text-center text-sm text-sage-dark" role="alert">
+                {sendError}
+              </p>
+            )}
 
             <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
               {wishes.length === 0 && (
@@ -550,8 +570,8 @@ export function Invitation({
                   Belum ada ucapan. Jadilah yang pertama.
                 </li>
               )}
-              {wishes.map((w) => (
-                <li key={w.id} className="rounded-2xl border border-gold/15 bg-cream p-4">
+              {wishes.map((w, index) => (
+                <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-serif text-base text-sage-dark">{w.name}</p>
                     <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
