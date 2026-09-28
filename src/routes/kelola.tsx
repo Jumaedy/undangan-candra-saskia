@@ -96,7 +96,16 @@ function Kelola() {
   }
 
   function wa(name: string) {
-    const text = `Kepada Yth. ${name}\n\nAssalamu'alaikum warahmatullahi wabarakatuh.\nTurut mengundang Bapak/Ibu/Saudara/i pada pernikahan kami.\n\n${tautan(name)}`;
+    const text = `Bismillah....Assalamu'alaikum warahmatullahi wabarakatuh.
+Kepada ${name}
+Tanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu untuk hadir pada pernikahan kami:
+Candra Purnama & Saskia
+Kamis, 01 Oktober 2026
+Akad pukul 10.00 WITA
+Resepsi pukul 18.00 WITA
+Mohon kesediaan Bapak/Ibu untuk membuka undangan di tautan berikut:
+${tautan(name)}
+Wassalamu'alaikum warahmatullahi wabarakatuh.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
@@ -157,7 +166,6 @@ function Kelola() {
             ))}
           </div>
           {notice && <p className="mt-4 text-sm text-[#f3e6c0]">{notice}</p>}
-
           {tab === "tamu" && (
             <form onSubmit={tambahTamu} className="mt-6">
               <label className="text-sm text-[#d7e6de]">Satu nama per baris. Bisa tempel banyak sekaligus.</label>
@@ -199,7 +207,6 @@ function Kelola() {
               </ul>
             </form>
           )}
-
           {tab === "isi" && (
             <div className="mt-6 space-y-2 text-sm text-[#d7e6de]">
               <p>
@@ -214,7 +221,6 @@ function Kelola() {
               )}
             </div>
           )}
-
           {tab === "ucapan" && (
             <ul className="mt-6 space-y-3">
               {server !== "hidup" && (
