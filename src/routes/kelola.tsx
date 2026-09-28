@@ -38,6 +38,8 @@ function Kelola() {
   const [wishes, setWishes] = useState<Wish[]>(loadWishes);
   const [selected, setSelected] = useState<number[]>([]);
   const [waQueue, setWaQueue] = useState<string[]>([]);
+  const [wishNote, setWishNote] = useState("");
+  const [wishTick, setWishTick] = useState(0);
 
   useEffect(() => {
     if (sessionStorage.getItem(PINTU_KEY) === "1") setTerbuka(true);
@@ -58,6 +60,17 @@ function Kelola() {
       });
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!terbuka) return;
+    setWishNote("");
+    void listWishes()
+      .then((rows) => {
+        setWishes(rows);
+        setWishNote("");
+      })
+      .catch(() => setWishNote("Daftar ucapan belum terbaca. Tekan Muat ulang."));
+  }, [terbuka, tab, wishTick]);
 
   function masuk(e: FormEvent) {
     e.preventDefault();
@@ -268,18 +281,10 @@ function Kelola() {
                 Antrian WhatsApp: <strong>{waQueue.length}</strong> tersisa
               </p>
               <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={lanjutKirimWA}
-                  className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
-                >
+                <button type="button" onClick={lanjutKirimWA} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
                   Lanjut Kirim
                 </button>
-                <button
-                  type="button"
-                  onClick={batalkanAntrian}
-                  className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]"
-                >
+                <button type="button" onClick={batalkanAntrian} className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]">
                   Batal
                 </button>
               </div>
@@ -311,18 +316,10 @@ function Kelola() {
                   </label>
                   {selected.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={mulaiWAMassal}
-                        className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
-                      >
+                      <button type="button" onClick={mulaiWAMassal} className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]">
                         WA Massal ({selected.length})
                       </button>
-                      <button
-                        type="button"
-                        onClick={hapusMassal}
-                        className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300"
-                      >
+                      <button type="button" onClick={hapusMassal} className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300">
                         Hapus Massal
                       </button>
                     </div>
@@ -330,9 +327,7 @@ function Kelola() {
                 </div>
               )}
               <ul className="mt-4 space-y-3">
-                {guests.length === 0 && (
-                  <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>
-                )}
+                {guests.length === 0 && <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>}
                 {guests.map((guest) => (
                   <li key={guest.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
                     <div className="flex items-start gap-3">
@@ -381,22 +376,28 @@ function Kelola() {
             </div>
           )}
           {tab === "ucapan" && (
-            <ul className="mt-6 space-y-3">
-              {wishes.length === 0 && (
-                <li className="text-sm text-[#d7e6de]">
-                  Belum ada ucapan di HP ini. Kalau tamu mengirim dari HP lain, pesannya belum masuk ke sini karena situs Vercel belum punya database bersama.
-                </li>
-              )}
-              {wishes.map((wish) => (
-                <li key={wish.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-serif text-[#f7f3ea]">{wish.name}</p>
-                    <span className="text-[10px] tracking-wide text-[#d4af37] uppercase">{wish.attend}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-[#d7e6de]">{wish.message}</p>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setWishTick((n) => n + 1)}
+                className="min-h-10 rounded-full border border-[#d4af37]/50 px-4 text-xs text-[#f3e6c0]"
+              >
+                Muat ulang
+              </button>
+              {wishNote && <p className="mt-3 text-sm text-[#f3e6c0]">{wishNote}</p>}
+              <ul className="mt-4 space-y-3">
+                {wishes.length === 0 && !wishNote && <li className="text-sm text-[#d7e6de]">Belum ada ucapan dari tamu.</li>}
+                {wishes.map((wish) => (
+                  <li key={wish.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-serif text-[#f7f3ea]">{wish.name}</p>
+                      <span className="text-[10px] tracking-wide text-[#d4af37] uppercase">{wish.attend}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-[#d7e6de]">{wish.message}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
