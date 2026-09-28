@@ -9,7 +9,7 @@ export const Route = createFileRoute("/kelola")({
 });
 
 const GUEST_KEY = "undangan-tamu-lokal";
-const SANDI = "istigfar'8888";
+const SANDI = "istigfarki'8888";
 const PINTU_KEY = "undangan-pintu";
 
 type Guest = { id: number; name: string };
@@ -36,6 +36,7 @@ function Kelola() {
   const [server, setServer] = useState<"cek" | "hidup" | "mati">("cek");
   const [settings, setSettings] = useState<InvitationSettings>(WEDDING);
   const [wishes, setWishes] = useState<Wish[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
 
   useEffect(() => {
     if (sessionStorage.getItem(PINTU_KEY) === "1") setTerbuka(true);
@@ -71,6 +72,8 @@ function Kelola() {
   function simpan(next: Guest[]) {
     setGuests(next);
     localStorage.setItem(GUEST_KEY, JSON.stringify(next));
+    // bersihkan pilihan yang sudah tidak ada
+    setSelected((prev) => prev.filter((id) => next.some((g) => g.id === id)));
   }
 
   function tambahTamu(e: FormEvent) {
@@ -109,6 +112,58 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
+  // ===== CRUD & Massal =====
+  function toggleSelect(id: number) {
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  function toggleSelectAll() {
+    if (selected.length === guests.length) {
+      setSelected([]);
+    } else {
+      setSelected(guests.map((g) => g.id));
+    }
+  }
+
+  function editGuest(id: number) {
+    const guest = guests.find((g) => g.id === id);
+    if (!guest) return;
+    const baru = window.prompt("Ubah nama tamu:", guest.name);
+    if (baru === null) return; // cancel
+    const namaBaru = baru.trim();
+    if (!namaBaru || namaBaru === guest.name) return;
+    simpan(guests.map((g) => (g.id === id ? { ...g, name: namaBaru } : g)));
+    setNotice(`Nama diubah menjadi "${namaBaru}".`);
+  }
+
+  function hapusSatu(id: number) {
+    if (!window.confirm("Hapus tamu ini?")) return;
+    simpan(guests.filter((g) => g.id !== id));
+    setNotice("Tamu dihapus.");
+  }
+
+  function hapusMassal() {
+    if (selected.length === 0) return;
+    if (!window.confirm(`Hapus ${selected.length} tamu terpilih?`)) return;
+    simpan(guests.filter((g) => !selected.includes(g.id)));
+    setSelected([]);
+    setNotice(`${selected.length} tamu dihapus.`);
+  }
+
+  async function waMassal() {
+    if (selected.length === 0) return;
+    const list = guests.filter((g) => selected.includes(g.id));
+    setNotice(`Membuka WhatsApp untuk ${list.length} tamu...`);
+    for (let i = 0; i < list.length; i++) {
+      wa(list[i].name);
+      // beri jeda agar browser tidak memblokir popup
+      if (i < list.length - 1) {
+        await new Promise((r) => setTimeout(r, 900));
+      }
+    }
+    setNotice(`Selesai membuka ${list.length} pesan WhatsApp.`);
+  }
+
   return (
     <Shell>
       {!terbuka ? (
@@ -143,6 +198,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                 ? "Panel tersambung. Daftar tamu tetap disimpan di HP ini supaya cepat dibagikan."
                 : "Daftar tamu siap dipakai. Tidak perlu menunggu."}
           </p>
+
           <div className="mt-5 grid grid-cols-3 gap-2">
             {(
               [
@@ -165,7 +221,9 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               </button>
             ))}
           </div>
+
           {notice && <p className="mt-4 text-sm text-[#f3e6c0]">{notice}</p>}
+
           {tab === "tamu" && (
             <form onSubmit={tambahTamu} className="mt-6">
               <label className="text-sm text-[#d7e6de]">Satu nama per baris. Bisa tempel banyak sekaligus.</label>
@@ -179,24 +237,86 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               <button className="mt-3 min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-[#d4af37] font-serif text-xs tracking-[0.2em] text-[#05281e] uppercase">
                 Tambah tamu
               </button>
-              <ul className="mt-6 space-y-3">
+
+              {/* Toolbar massal */}
+              {guests.length > 0 && (
+                <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-[#d7e6de]">
+                    <input
+                      type="checkbox"
+                      checked={selected.length === guests.length && guests.length > 0}
+                      onChange={toggleSelectAll}
+                      className="size-4 accent-[#d4af37]"
+                    />
+                    Pilih semua ({selected.length}/{guests.length})
+                  </label>
+
+                  {selected.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void waMassal()}
+                        className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
+                      >
+                        WA Massal ({selected.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={hapusMassal}
+                        className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300"
+                      >
+                        Hapus Massal
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <ul className="mt-4 space-y-3">
                 {guests.length === 0 && (
                   <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>
                 )}
+
                 {guests.map((guest) => (
                   <li key={guest.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
-                    <p className="font-serif text-lg text-[#f7f3ea]">{guest.name}</p>
-                    <p className="mt-1 truncate text-xs text-[#d7e6de]">{tautan(guest.name)}</p>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => void salin(guest.name)} className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(guest.id)}
+                        onChange={() => toggleSelect(guest.id)}
+                        className="mt-1 size-4 shrink-0 accent-[#d4af37]"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-serif text-lg text-[#f7f3ea]">{guest.name}</p>
+                        <p className="mt-1 truncate text-xs text-[#d7e6de]">{tautan(guest.name)}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editGuest(guest.id)}
+                        className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void salin(guest.name)}
+                        className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]"
+                      >
                         Salin
                       </button>
-                      <button type="button" onClick={() => wa(guest.name)} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
+                      <button
+                        type="button"
+                        onClick={() => wa(guest.name)}
+                        className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                      >
                         WhatsApp
                       </button>
                       <button
                         type="button"
-                        onClick={() => simpan(guests.filter((item) => item.id !== guest.id))}
+                        onClick={() => hapusSatu(guest.id)}
                         className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]"
                       >
                         Hapus
@@ -207,6 +327,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               </ul>
             </form>
           )}
+
           {tab === "isi" && (
             <div className="mt-6 space-y-2 text-sm text-[#d7e6de]">
               <p>
@@ -221,10 +342,13 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               )}
             </div>
           )}
+
           {tab === "ucapan" && (
             <ul className="mt-6 space-y-3">
               {server !== "hidup" && (
-                <li className="text-sm text-[#d7e6de]">Ucapan tamu di situs Vercel ini masih tersimpan di HP masing-masing, belum di satu daftar bersama.</li>
+                <li className="text-sm text-[#d7e6de]">
+                  Ucapan tamu di situs Vercel ini masih tersimpan di HP masing-masing, belum di satu daftar bersama.
+                </li>
               )}
               {wishes.map((wish) => (
                 <li key={wish.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
