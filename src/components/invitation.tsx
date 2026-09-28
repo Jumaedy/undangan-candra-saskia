@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, type Wish } from "@/lib/wedding";
+import { WEDDING, loadWishes, saveWishes, type Wish } from "@/lib/wedding";
 import { addWish, listWishes } from "@/lib/undangan.functions";
 import { cn } from "@/lib/utils";
 
@@ -150,8 +149,12 @@ export function Invitation({
       });
       AOS.refresh();
     }, 150);
-    setWishes([]);
-    void listWishes().then(setWishes).catch(() => {});
+    setWishes(loadWishes());
+    void listWishes()
+      .then((remote) => {
+        if (remote.length > 0) setWishes(remote);
+      })
+      .catch(() => {});
     return () => window.clearTimeout(id);
   }, [opened]);
 
@@ -212,16 +215,25 @@ export function Invitation({
     }
   }
 
-  async function kirimUcapan(e: React.FormEvent) {
+  function kirimUcapan(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !message.trim()) return;
-    const saved = await addWish({
-      data: { name: name.trim(), attend, message: message.trim() },
-    });
-    setWishes((prev) => [saved, ...prev]);
+    const saved: Wish = {
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      attend,
+      message: message.trim(),
+      at: Date.now(),
+    };
+    const next = [saved, ...wishes];
+    setWishes(next);
+    saveWishes(next);
     setName("");
     setMessage("");
     setAttend("Hadir");
+    void addWish({
+      data: { name: saved.name, attend: saved.attend, message: saved.message },
+    }).catch(() => {});
   }
 
   const gallery = [
@@ -238,7 +250,6 @@ export function Invitation({
       <audio ref={audioRef} src="/audio/ar-rum-21-tilawah.mp3" preload="auto" loop />
       <audio ref={birdsRef} src="/audio/birds.mp3" preload="auto" loop />
 
-      {/* ===== 1. COVER / WELCOME (kunci scroll) ===== */}
       {!coverGone && (
         <div
           className={cn(
@@ -292,9 +303,7 @@ export function Invitation({
 
       {opened && <Garden />}
 
-      {/* ===== HALAMAN UTAMA ===== */}
       <main className={opened ? "block" : "invisible h-svh overflow-hidden"}>
-        {/* 2. HERO */}
         <section className="relative">
           <img
             src="/images/hero.jpg"
@@ -350,7 +359,6 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 3. PROFIL */}
         <section className="px-5 py-16">
           <p
             className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
@@ -394,11 +402,7 @@ export function Invitation({
               data-aos-offset="0"
             >
               <div className="mx-auto h-44 w-36 overflow-hidden rounded-t-full border-4 border-gold/40">
-                <img
-                  src="/images/bride.jpg"
-                  alt="Saskia"
-                  className="h-full w-full object-cover object-top"
-                />
+                <img src="/images/bride.jpg" alt="Saskia" className="h-full w-full object-cover object-top" />
               </div>
               <h3 className="mt-5 font-serif text-3xl text-sage-dark">{info.brideFull}</h3>
               <p className="mt-2 text-sm text-muted">
@@ -419,7 +423,6 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 4. DETAIL ACARA */}
         <section className="px-5 py-16">
           <p
             className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
@@ -466,7 +469,6 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 5. GALERI */}
         <section className="px-5 py-16">
           <p
             className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
@@ -498,7 +500,6 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 6. RSVP */}
         <section className="px-5 py-16">
           <div
             className="mx-auto max-w-lg"
@@ -531,6 +532,7 @@ export function Invitation({
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Tulis ucapan & doa restu"
                 rows={4}
+                spellCheck={false}
                 className="w-full rounded-2xl border border-gold/25 bg-cream px-4 py-3 text-sm outline-none"
                 required
               />
@@ -570,12 +572,7 @@ export function Invitation({
             {info.groom} & {info.bride}
           </p>
           <LeafDivider />
-          <p className="text-[11px] tracking-[0.22em] text-gold uppercase">
-            by {info.credit}
-          </p>
-          <Link to="/kelola" className="mt-4 inline-block text-[10px] tracking-[0.18em] text-broken/50 uppercase">
-            Kelola
-          </Link>
+          <p className="text-[11px] tracking-[0.22em] text-gold uppercase">by {info.credit}</p>
         </footer>
       </main>
 
@@ -585,7 +582,6 @@ export function Invitation({
         </div>
       )}
 
-      {/* Audio control — kanan bawah */}
       {opened && (
         <button
           type="button"
@@ -593,12 +589,7 @@ export function Invitation({
           className="fixed right-5 bottom-5 z-40 inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border border-gold/50 bg-[var(--disc)] text-gold shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
           aria-label={playing ? "Jeda tilawah" : "Putar tilawah"}
         >
-          <i
-            className={cn(
-              "fa-solid fa-compact-disc text-xl",
-              playing && "vinyl-spin",
-            )}
-          />
+          <i className={cn("fa-solid fa-compact-disc text-xl", playing && "vinyl-spin")} />
         </button>
       )}
     </div>
