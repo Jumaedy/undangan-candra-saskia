@@ -9,7 +9,7 @@ export const Route = createFileRoute("/kelola")({
 });
 
 const GUEST_KEY = "undangan-tamu-lokal";
-const SANDI = "istigfar8888"; // ← sudah dihilangkan tanda petiknya
+const SANDI = "istigfar8888";
 const PINTU_KEY = "undangan-pintu";
 
 type Guest = { id: number; name: string };
@@ -37,7 +37,7 @@ function Kelola() {
   const [settings, setSettings] = useState<InvitationSettings>(WEDDING);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
-  const [waQueue, setWaQueue] = useState<string[]>([]); // antrian WA massal
+  const [waQueue, setWaQueue] = useState<string[]>([]);
 
   useEffect(() => {
     if (sessionStorage.getItem(PINTU_KEY) === "1") setTerbuka(true);
@@ -99,7 +99,7 @@ function Kelola() {
   }
 
   function tautan(name: string) {
-    return `${window.location.origin}/?to=${encodeURIComponent(name)}`;
+    return `${window.location.origin}/?to=${encodeURIComponent(name)}&baru=1`;
   }
 
   async function salin(name: string) {
@@ -108,30 +108,32 @@ function Kelola() {
   }
 
   function wa(name: string) {
-    const text = `Bismillah....Assalamu'alaikum warahmatullahi wabarakatuh.
-Kepada ${name}
-Tanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu untuk hadir pada pernikahan kami:
-Candra Purnama & Saskia
-Kamis, 01 Oktober 2026
-Akad pukul 10.00 WITA
-Resepsi pukul 18.00 WITA
-Mohon kesediaan Bapak/Ibu untuk membuka undangan di tautan berikut:
-${tautan(name)}
-Wassalamu'alaikum warahmatullahi wabarakatuh.`;
+    const text = [
+      "Bismillah....Assalamu'alaikum warahmatullahi wabarakatuh.",
+      `Kepada ${name}`,
+      "",
+      "Tanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu untuk hadir pada pernikahan kami:",
+      "",
+      "Candra Purnama & Saskia",
+      "Kamis, 01 Oktober 2026",
+      "Akad pukul 10.00 WITA",
+      "Resepsi pukul 18.00 WITA",
+      "",
+      "Mohon kesediaan Bapak/Ibu untuk membuka undangan di tautan berikut:",
+      tautan(name),
+      "",
+      "Wassalamu'alaikum warahmatullahi wabarakatuh.",
+    ].join("\r\n");
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
   }
 
-  // ===== CRUD & Massal =====
   function toggleSelect(id: number) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function toggleSelectAll() {
-    if (selected.length === guests.length) {
-      setSelected([]);
-    } else {
-      setSelected(guests.map((g) => g.id));
-    }
+    if (selected.length === guests.length) setSelected([]);
+    else setSelected(guests.map((g) => g.id));
   }
 
   function editGuest(id: number) {
@@ -160,12 +162,10 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
     setNotice(`${jumlah} tamu dihapus.`);
   }
 
-  // WA Massal dengan antrian (lebih andal di HP)
   function mulaiWAMassal() {
     if (selected.length === 0) return;
     const list = guests.filter((g) => selected.includes(g.id)).map((g) => g.name);
     setWaQueue(list);
-    // langsung buka yang pertama
     wa(list[0]);
     setNotice(`Membuka 1 dari ${list.length}. Klik "Lanjut Kirim" untuk berikutnya.`);
   }
@@ -179,7 +179,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
     const sisa = waQueue.slice(1);
     setWaQueue(sisa);
     wa(sisa[0]);
-    setNotice(`Membuka ${guests.filter((g) => selected.includes(g.id)).length - sisa.length + 1} dari ${guests.filter((g) => selected.includes(g.id)).length}. Klik "Lanjut Kirim" lagi.`);
+    setNotice(`Membuka berikutnya. Sisa ${sisa.length}. Klik "Lanjut Kirim" lagi.`);
   }
 
   function batalkanAntrian() {
@@ -232,7 +232,6 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               Logout
             </button>
           </div>
-
           <div className="mt-5 grid grid-cols-3 gap-2">
             {(
               [
@@ -255,34 +254,22 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               </button>
             ))}
           </div>
-
           {notice && <p className="mt-4 text-sm text-[#f3e6c0]">{notice}</p>}
-
-          {/* Panel antrian WA Massal */}
           {waQueue.length > 0 && (
             <div className="mt-4 rounded-2xl border border-[#d4af37]/40 bg-[#0a3328] p-4">
               <p className="text-sm text-[#f3e6c0]">
                 Antrian WhatsApp: <strong>{waQueue.length}</strong> tersisa
               </p>
               <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={lanjutKirimWA}
-                  className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
-                >
+                <button type="button" onClick={lanjutKirimWA} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
                   Lanjut Kirim
                 </button>
-                <button
-                  type="button"
-                  onClick={batalkanAntrian}
-                  className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]"
-                >
+                <button type="button" onClick={batalkanAntrian} className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]">
                   Batal
                 </button>
               </div>
             </div>
           )}
-
           {tab === "tamu" && (
             <form onSubmit={tambahTamu} className="mt-6">
               <label className="text-sm text-[#d7e6de]">Satu nama per baris. Bisa tempel banyak sekaligus.</label>
@@ -296,7 +283,6 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               <button className="mt-3 min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-[#d4af37] font-serif text-xs tracking-[0.2em] text-[#05281e] uppercase">
                 Tambah tamu
               </button>
-
               {guests.length > 0 && (
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-sm text-[#d7e6de]">
@@ -308,33 +294,22 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                     />
                     Pilih semua ({selected.length}/{guests.length})
                   </label>
-
                   {selected.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={mulaiWAMassal}
-                        className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
-                      >
+                      <button type="button" onClick={mulaiWAMassal} className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]">
                         WA Massal ({selected.length})
                       </button>
-                      <button
-                        type="button"
-                        onClick={hapusMassal}
-                        className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300"
-                      >
+                      <button type="button" onClick={hapusMassal} className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300">
                         Hapus Massal
                       </button>
                     </div>
                   )}
                 </div>
               )}
-
               <ul className="mt-4 space-y-3">
                 {guests.length === 0 && (
                   <li className="text-sm text-[#d7e6de]">Belum ada tamu. Tambahkan nama di atas.</li>
                 )}
-
                 {guests.map((guest) => (
                   <li key={guest.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
                     <div className="flex items-start gap-3">
@@ -349,34 +324,17 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                         <p className="mt-1 truncate text-xs text-[#d7e6de]">{tautan(guest.name)}</p>
                       </div>
                     </div>
-
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => editGuest(guest.id)}
-                        className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]"
-                      >
+                      <button type="button" onClick={() => editGuest(guest.id)} className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]">
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => void salin(guest.name)}
-                        className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]"
-                      >
+                      <button type="button" onClick={() => void salin(guest.name)} className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]">
                         Salin
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => wa(guest.name)}
-                        className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
-                      >
+                      <button type="button" onClick={() => wa(guest.name)} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
                         WhatsApp
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => hapusSatu(guest.id)}
-                        className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]"
-                      >
+                      <button type="button" onClick={() => hapusSatu(guest.id)} className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]">
                         Hapus
                       </button>
                     </div>
@@ -385,12 +343,9 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               </ul>
             </form>
           )}
-
           {tab === "isi" && (
             <div className="mt-6 space-y-2 text-sm text-[#d7e6de]">
-              <p>
-                {settings.groom} & {settings.bride}
-              </p>
+              <p>{settings.groom} & {settings.bride}</p>
               <p>{settings.dateLabel}</p>
               <p>{settings.resepsiVenue}</p>
               {server !== "hidup" && (
@@ -400,7 +355,6 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
               )}
             </div>
           )}
-
           {tab === "ucapan" && (
             <ul className="mt-6 space-y-3">
               {server !== "hidup" && (
