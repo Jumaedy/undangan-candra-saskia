@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { getSettings, listWishes, pinStatus } from "@/lib/undangan.functions";
-import { WEDDING, type Wish } from "@/lib/wedding";
+import { WEDDING, loadWishes, type Wish } from "@/lib/wedding";
 import type { InvitationSettings } from "@/lib/undangan.functions";
 
 export const Route = createFileRoute("/kelola")({
@@ -35,7 +35,7 @@ function Kelola() {
   const [tab, setTab] = useState<"tamu" | "isi" | "ucapan">("tamu");
   const [server, setServer] = useState<"cek" | "hidup" | "mati">("cek");
   const [settings, setSettings] = useState<InvitationSettings>(WEDDING);
-  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [wishes, setWishes] = useState<Wish[]>(loadWishes);
   const [selected, setSelected] = useState<number[]>([]);
   const [waQueue, setWaQueue] = useState<string[]>([]);
 
@@ -50,7 +50,7 @@ function Kelola() {
         setServer("hidup");
         const [nextSettings, nextWishes] = await Promise.all([getSettings(), listWishes()]);
         setSettings(nextSettings);
-        setWishes(nextWishes);
+        if (nextWishes.length > 0) setWishes(nextWishes);
       })
       .catch(() => {
         window.clearTimeout(timer);
@@ -348,32 +348,16 @@ function Kelola() {
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => editGuest(guest.id)}
-                        className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]"
-                      >
+                      <button type="button" onClick={() => editGuest(guest.id)} className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]">
                         Edit
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => void salin(guest.name)}
-                        className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]"
-                      >
+                      <button type="button" onClick={() => void salin(guest.name)} className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]">
                         Salin
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => wa(guest.name)}
-                        className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
-                      >
+                      <button type="button" onClick={() => wa(guest.name)} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
                         WhatsApp
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => hapusSatu(guest.id)}
-                        className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]"
-                      >
+                      <button type="button" onClick={() => hapusSatu(guest.id)} className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]">
                         Hapus
                       </button>
                     </div>
@@ -398,14 +382,17 @@ function Kelola() {
           )}
           {tab === "ucapan" && (
             <ul className="mt-6 space-y-3">
-              {server !== "hidup" && (
+              {wishes.length === 0 && (
                 <li className="text-sm text-[#d7e6de]">
-                  Ucapan tamu di situs Vercel ini masih tersimpan di HP masing-masing, belum di satu daftar bersama.
+                  Belum ada ucapan di HP ini. Kalau tamu mengirim dari HP lain, pesannya belum masuk ke sini karena situs Vercel belum punya database bersama.
                 </li>
               )}
               {wishes.map((wish) => (
                 <li key={wish.id} className="rounded-2xl border border-[#d4af37]/25 bg-[#05281e] p-4">
-                  <p className="font-serif text-[#f7f3ea]">{wish.name}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-serif text-[#f7f3ea]">{wish.name}</p>
+                    <span className="text-[10px] tracking-wide text-[#d4af37] uppercase">{wish.attend}</span>
+                  </div>
                   <p className="mt-1 text-sm text-[#d7e6de]">{wish.message}</p>
                 </li>
               ))}
