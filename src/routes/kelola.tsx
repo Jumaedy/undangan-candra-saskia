@@ -9,7 +9,7 @@ export const Route = createFileRoute("/kelola")({
 });
 
 const GUEST_KEY = "undangan-tamu-lokal";
-const SANDI = "istigfarki'8888";
+const SANDI = "istigfar8888"; // ← sudah dihilangkan tanda petiknya
 const PINTU_KEY = "undangan-pintu";
 
 type Guest = { id: number; name: string };
@@ -37,6 +37,7 @@ function Kelola() {
   const [settings, setSettings] = useState<InvitationSettings>(WEDDING);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
+  const [waQueue, setWaQueue] = useState<string[]>([]); // antrian WA massal
 
   useEffect(() => {
     if (sessionStorage.getItem(PINTU_KEY) === "1") setTerbuka(true);
@@ -67,12 +68,20 @@ function Kelola() {
     sessionStorage.setItem(PINTU_KEY, "1");
     setTerbuka(true);
     setSalah(false);
+    setDraft("");
+  }
+
+  function logout() {
+    sessionStorage.removeItem(PINTU_KEY);
+    setTerbuka(false);
+    setSelected([]);
+    setWaQueue([]);
+    setNotice("");
   }
 
   function simpan(next: Guest[]) {
     setGuests(next);
     localStorage.setItem(GUEST_KEY, JSON.stringify(next));
-    // bersihkan pilihan yang sudah tidak ada
     setSelected((prev) => prev.filter((id) => next.some((g) => g.id === id)));
   }
 
@@ -129,7 +138,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
     const guest = guests.find((g) => g.id === id);
     if (!guest) return;
     const baru = window.prompt("Ubah nama tamu:", guest.name);
-    if (baru === null) return; // cancel
+    if (baru === null) return;
     const namaBaru = baru.trim();
     if (!namaBaru || namaBaru === guest.name) return;
     simpan(guests.map((g) => (g.id === id ? { ...g, name: namaBaru } : g)));
@@ -145,23 +154,37 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
   function hapusMassal() {
     if (selected.length === 0) return;
     if (!window.confirm(`Hapus ${selected.length} tamu terpilih?`)) return;
+    const jumlah = selected.length;
     simpan(guests.filter((g) => !selected.includes(g.id)));
     setSelected([]);
-    setNotice(`${selected.length} tamu dihapus.`);
+    setNotice(`${jumlah} tamu dihapus.`);
   }
 
-  async function waMassal() {
+  // WA Massal dengan antrian (lebih andal di HP)
+  function mulaiWAMassal() {
     if (selected.length === 0) return;
-    const list = guests.filter((g) => selected.includes(g.id));
-    setNotice(`Membuka WhatsApp untuk ${list.length} tamu...`);
-    for (let i = 0; i < list.length; i++) {
-      wa(list[i].name);
-      // beri jeda agar browser tidak memblokir popup
-      if (i < list.length - 1) {
-        await new Promise((r) => setTimeout(r, 900));
-      }
+    const list = guests.filter((g) => selected.includes(g.id)).map((g) => g.name);
+    setWaQueue(list);
+    // langsung buka yang pertama
+    wa(list[0]);
+    setNotice(`Membuka 1 dari ${list.length}. Klik "Lanjut Kirim" untuk berikutnya.`);
+  }
+
+  function lanjutKirimWA() {
+    if (waQueue.length <= 1) {
+      setWaQueue([]);
+      setNotice("Selesai mengirim semua pesan WhatsApp.");
+      return;
     }
-    setNotice(`Selesai membuka ${list.length} pesan WhatsApp.`);
+    const sisa = waQueue.slice(1);
+    setWaQueue(sisa);
+    wa(sisa[0]);
+    setNotice(`Membuka ${guests.filter((g) => selected.includes(g.id)).length - sisa.length + 1} dari ${guests.filter((g) => selected.includes(g.id)).length}. Klik "Lanjut Kirim" lagi.`);
+  }
+
+  function batalkanAntrian() {
+    setWaQueue([]);
+    setNotice("Antrian WhatsApp dibatalkan.");
   }
 
   return (
@@ -190,14 +213,25 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
         </form>
       ) : (
         <>
-          <h1 className="font-serif text-3xl text-[#f7f3ea]">Kelola undangan</h1>
-          <p className="mt-2 text-sm text-[#d7e6de]">
-            {server === "mati"
-              ? "Daftar tamu tersimpan di HP ini. Tautan yang dikirim tetap bisa dibuka tamu di situs."
-              : server === "hidup"
-                ? "Panel tersambung. Daftar tamu tetap disimpan di HP ini supaya cepat dibagikan."
-                : "Daftar tamu siap dipakai. Tidak perlu menunggu."}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="font-serif text-3xl text-[#f7f3ea]">Kelola undangan</h1>
+              <p className="mt-2 text-sm text-[#d7e6de]">
+                {server === "mati"
+                  ? "Daftar tamu tersimpan di HP ini. Tautan yang dikirim tetap bisa dibuka tamu di situs."
+                  : server === "hidup"
+                    ? "Panel tersambung. Daftar tamu tetap disimpan di HP ini supaya cepat dibagikan."
+                    : "Daftar tamu siap dipakai. Tidak perlu menunggu."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="shrink-0 rounded-full border border-[#d4af37]/40 px-3 py-1.5 text-xs text-[#f3e6c0]"
+            >
+              Logout
+            </button>
+          </div>
 
           <div className="mt-5 grid grid-cols-3 gap-2">
             {(
@@ -224,6 +258,31 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
 
           {notice && <p className="mt-4 text-sm text-[#f3e6c0]">{notice}</p>}
 
+          {/* Panel antrian WA Massal */}
+          {waQueue.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-[#d4af37]/40 bg-[#0a3328] p-4">
+              <p className="text-sm text-[#f3e6c0]">
+                Antrian WhatsApp: <strong>{waQueue.length}</strong> tersisa
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={lanjutKirimWA}
+                  className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                >
+                  Lanjut Kirim
+                </button>
+                <button
+                  type="button"
+                  onClick={batalkanAntrian}
+                  className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          )}
+
           {tab === "tamu" && (
             <form onSubmit={tambahTamu} className="mt-6">
               <label className="text-sm text-[#d7e6de]">Satu nama per baris. Bisa tempel banyak sekaligus.</label>
@@ -238,7 +297,6 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                 Tambah tamu
               </button>
 
-              {/* Toolbar massal */}
               {guests.length > 0 && (
                 <div className="mt-6 flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-sm text-[#d7e6de]">
@@ -255,7 +313,7 @@ Wassalamu'alaikum warahmatullahi wabarakatuh.`;
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => void waMassal()}
+                        onClick={mulaiWAMassal}
                         className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
                       >
                         WA Massal ({selected.length})
