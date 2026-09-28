@@ -99,32 +99,36 @@ function Kelola() {
   }
 
   function tautan(name: string) {
-    return `${window.location.origin}/?to=${encodeURIComponent(name)}&baru=1`;
+    return `${window.location.origin}/?to=${encodeURIComponent(`${name}~k`)}`;
   }
 
-  async function salin(name: string) {
-    await navigator.clipboard.writeText(tautan(name));
-    setNotice(`Tautan ${name} disalin.`);
-  }
-
-  function wa(name: string) {
-    const text = [
+  function pesan(name: string) {
+    const jarak = "\u00A0";
+    return [
       "Bismillah....Assalamu'alaikum warahmatullahi wabarakatuh.",
       `Kepada ${name}`,
-      "",
+      jarak,
       "Tanpa mengurangi rasa hormat, kami mengundang Bapak/Ibu untuk hadir pada pernikahan kami:",
-      "",
+      jarak,
       "Candra Purnama & Saskia",
       "Kamis, 01 Oktober 2026",
       "Akad pukul 10.00 WITA",
       "Resepsi pukul 18.00 WITA",
-      "",
+      jarak,
       "Mohon kesediaan Bapak/Ibu untuk membuka undangan di tautan berikut:",
       tautan(name),
-      "",
+      jarak,
       "Wassalamu'alaikum warahmatullahi wabarakatuh.",
-    ].join("\r\n");
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    ].join("\n");
+  }
+
+  async function salin(name: string) {
+    await navigator.clipboard.writeText(pesan(name));
+    setNotice(`Pesan ${name} disalin, lengkap dengan jarak barisnya.`);
+  }
+
+  function wa(name: string) {
+    window.open(`https://wa.me/?text=${encodeURIComponent(pesan(name))}`, "_blank", "noopener,noreferrer");
   }
 
   function toggleSelect(id: number) {
@@ -132,8 +136,11 @@ function Kelola() {
   }
 
   function toggleSelectAll() {
-    if (selected.length === guests.length) setSelected([]);
-    else setSelected(guests.map((g) => g.id));
+    if (selected.length === guests.length) {
+      setSelected([]);
+    } else {
+      setSelected(guests.map((g) => g.id));
+    }
   }
 
   function editGuest(id: number) {
@@ -261,10 +268,18 @@ function Kelola() {
                 Antrian WhatsApp: <strong>{waQueue.length}</strong> tersisa
               </p>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={lanjutKirimWA} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
+                <button
+                  type="button"
+                  onClick={lanjutKirimWA}
+                  className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                >
                   Lanjut Kirim
                 </button>
-                <button type="button" onClick={batalkanAntrian} className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]">
+                <button
+                  type="button"
+                  onClick={batalkanAntrian}
+                  className="min-h-10 rounded-full border border-[#d4af37]/40 px-4 text-xs text-[#d7e6de]"
+                >
                   Batal
                 </button>
               </div>
@@ -296,10 +311,18 @@ function Kelola() {
                   </label>
                   {selected.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={mulaiWAMassal} className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]">
+                      <button
+                        type="button"
+                        onClick={mulaiWAMassal}
+                        className="min-h-9 rounded-full bg-[#0e6b4f] px-4 text-xs text-[#f7f3ea]"
+                      >
                         WA Massal ({selected.length})
                       </button>
-                      <button type="button" onClick={hapusMassal} className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300">
+                      <button
+                        type="button"
+                        onClick={hapusMassal}
+                        className="min-h-9 rounded-full border border-red-400/60 px-4 text-xs text-red-300"
+                      >
                         Hapus Massal
                       </button>
                     </div>
@@ -325,16 +348,32 @@ function Kelola() {
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => editGuest(guest.id)} className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]">
+                      <button
+                        type="button"
+                        onClick={() => editGuest(guest.id)}
+                        className="min-h-10 rounded-full border border-[#d4af37]/50 px-3 text-xs text-[#f3e6c0]"
+                      >
                         Edit
                       </button>
-                      <button type="button" onClick={() => void salin(guest.name)} className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]">
+                      <button
+                        type="button"
+                        onClick={() => void salin(guest.name)}
+                        className="min-h-10 flex-1 rounded-full border border-[#d4af37]/50 text-xs text-[#f3e6c0]"
+                      >
                         Salin
                       </button>
-                      <button type="button" onClick={() => wa(guest.name)} className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]">
+                      <button
+                        type="button"
+                        onClick={() => wa(guest.name)}
+                        className="min-h-10 flex-1 rounded-full bg-[#0e6b4f] text-xs text-[#f7f3ea]"
+                      >
                         WhatsApp
                       </button>
-                      <button type="button" onClick={() => hapusSatu(guest.id)} className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]">
+                      <button
+                        type="button"
+                        onClick={() => hapusSatu(guest.id)}
+                        className="min-h-10 rounded-full px-3 text-xs text-[#d7e6de]"
+                      >
                         Hapus
                       </button>
                     </div>
@@ -345,7 +384,9 @@ function Kelola() {
           )}
           {tab === "isi" && (
             <div className="mt-6 space-y-2 text-sm text-[#d7e6de]">
-              <p>{settings.groom} & {settings.bride}</p>
+              <p>
+                {settings.groom} & {settings.bride}
+              </p>
               <p>{settings.dateLabel}</p>
               <p>{settings.resepsiVenue}</p>
               {server !== "hidup" && (
