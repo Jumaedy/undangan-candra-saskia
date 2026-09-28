@@ -219,8 +219,38 @@ export const deleteGuest = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export const listWishes = createServerFn({ method: "GET" }).handler(async () => {
+const WISH_STORE = "https://crudcrud.com/api/5294fc3acdb84b7ea4d5f7d3ce57183d/wishes";
+
+function databaseReady() {
+  return Boolean(process.env.DATABASE_URL?.trim());
+}
+
+async function storeFetch(url: string, init?: RequestInit) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function asWish(row: { _id?: string; id?: string; name?: string; message?: string; attend?: string; at?: number }): Wish | null {
+  if (row.attend !== "Hadir" && row.attend !== "Tidak Hadir") return null;
+  const name = String(row.name ?? "").trim();
+  const message = String(row.message ?? "").trim();
+  if (!name || !message) return null;
+  return {
+    id: String(row._id ?? row.id ?? crypto.randomUUID()),
+    name: name.slice(0, 80),
+    message: message.slice(0, 500),
+    attend: row.attend,
+    at: typeof row.at === "number" ? row.at : Date.now(),
+  };
+}
+
+export const listWishes = createServerFn({ method: "GET" }).handler(async () => {
+  if (databaseReady()) {
     const sql = await getSql();
     const rows = await sql<{ id: string; name: string; message: string; attend: string; at: string }>`
       select id, name, message, attend, created_at::text as at from wishes order by created_at desc
@@ -236,9 +266,14 @@ export const listWishes = createServerFn({ method: "GET" }).handler(async () => 
           at: Date.parse(row.at) || Date.now(),
         }),
       );
-  } catch {
-    return [];
   }
+  const res = await storeFetch(WISH_STORE);
+  if (!res.ok) throw new Error("Daftar ucapan belum bisa dibuka.");
+  const rows = (await res.json()) as Array<Parameters<typeof asWish>[0]>;
+  return rows
+    .map((row) => asWish(row))
+    .filter((row): row is Wish => Boolean(row))
+    .sort((a, b) => b.at - a.at);
 });
 
 export const addWish = createServerFn({ method: "POST" })
@@ -250,12 +285,23 @@ export const addWish = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<Wish> => {
-    const sql = await getSql();
-    const id = crypto.randomUUID();
-    await sql`
-      insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
-    `;
-    return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
+    if (databaseReady()) {
+      const sql = await getSql();
+      const id = crypto.randomUUID();
+      await sql`
+        insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
+      `;
+      return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
+    }
+    const at = Date.now();
+    const res = await storeFetch(WISH_STORE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.name, message: data.message, attend: data.attend, at }),
+    });
+    if (!res.ok) throw new Error("Ucapan belum tersimpan.");
+    const row = (await res.json()) as { _id?: string };
+    return { id: String(row._id ?? crypto.randomUUID()), name: data.name, message: data.message, attend: data.attend, at };
   });
 
 export const deleteWish = createServerFn({ method: "POST" })
