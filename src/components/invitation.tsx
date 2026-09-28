@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, fetchSharedWishes, loadWishes, postSharedWish, saveWishes, type Wish } from "@/lib/wedding";
+import { WEDDING, deleteSharedWish, fetchSharedWishes, loadMine, loadWishes, postSharedWish, rememberMine, saveWishes, updateSharedWish, type Wish } from "@/lib/wedding";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -125,6 +125,9 @@ export function Invitation({
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [mine, setMine] = useState<string[]>([]);
+  const [admin, setAdmin] = useState(false);
+  const pintu = useRef({ n: 0, t: 0 });
 
   useEffect(() => {
     document.body.style.overflow = opened ? "" : "hidden";
@@ -134,6 +137,8 @@ export function Invitation({
   }, [opened]);
 
   useEffect(() => {
+    setMine(loadMine());
+    setAdmin(sessionStorage.getItem("undangan-pintu") === "1");
     const saved = localStorage.getItem("undangan-tema");
     if (saved === "ivory" || saved === "emerald") setTheme(saved);
   }, []);
@@ -230,6 +235,8 @@ export function Invitation({
         attend,
         message: message.trim(),
       });
+      rememberMine(saved.id);
+      setMine(loadMine());
       const next = [saved, ...wishes.filter((item) => item.id !== saved.id)];
       setWishes(next);
       saveWishes(next);
@@ -242,6 +249,41 @@ export function Invitation({
       setSendError("Belum terkirim. Periksa internet, lalu tekan Kirim lagi.");
     } finally {
       setSending(false);
+    }
+  }
+
+  async function ubahMilik(wish: Wish) {
+    const baru = window.prompt("Ubah ucapan Anda:", wish.message);
+    if (baru === null) return;
+    const message = baru.trim();
+    if (!message || message === wish.message) return;
+    const nextWish = { ...wish, message };
+    try {
+      await updateSharedWish(nextWish);
+      setWishes((prev) => prev.map((item) => (item.id === wish.id ? nextWish : item)));
+    } catch {
+      window.alert("Ucapan belum berubah. Coba lagi.");
+    }
+  }
+
+  async function hapusMilik(wish: Wish) {
+    if (!window.confirm("Hapus ucapan ini?")) return;
+    try {
+      await deleteSharedWish(wish.id);
+      setWishes((prev) => prev.filter((item) => item.id !== wish.id));
+    } catch {
+      window.alert("Ucapan belum terhapus. Coba lagi.");
+    }
+  }
+
+  function ketukKredit() {
+    const now = Date.now();
+    if (now - pintu.current.t > 2000) pintu.current.n = 0;
+    pintu.current.t = now;
+    pintu.current.n += 1;
+    if (pintu.current.n >= 5) {
+      pintu.current.n = 0;
+      window.location.href = "/kelola";
     }
   }
 
@@ -259,6 +301,7 @@ export function Invitation({
       <audio ref={audioRef} src="/audio/ar-rum-21-tilawah.mp3" preload="auto" loop />
       <audio ref={birdsRef} src="/audio/birds.mp3" preload="auto" loop />
 
+      {/* ===== 1. COVER / WELCOME (kunci scroll) ===== */}
       {!coverGone && (
         <div
           className={cn(
@@ -282,10 +325,14 @@ export function Invitation({
             <i className={birdsOn ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark"} />
           </button>
           <div className="relative z-10 w-full max-w-md px-6 pb-16 text-center text-broken">
-            <p className="font-serif text-[11px] tracking-[0.45em] text-gold uppercase">The Wedding of</p>
+            <p className="font-serif text-[11px] tracking-[0.45em] text-gold uppercase">
+              The Wedding of
+            </p>
             <h1 className="mt-3 font-serif text-4xl leading-tight text-balance sm:text-5xl">
               {info.groom}
-              <span className="mt-1 block font-serif text-xl font-normal italic text-gold">&</span>
+              <span className="mt-1 block font-serif text-xl font-normal italic text-gold">
+                &
+              </span>
               {info.bride}
             </h1>
             <p className="mt-6 text-xs tracking-[0.2em] text-broken/80 uppercase">Kepada Yth.</p>
@@ -308,7 +355,9 @@ export function Invitation({
 
       {opened && <Garden />}
 
+      {/* ===== HALAMAN UTAMA ===== */}
       <main className={opened ? "block" : "invisible h-svh overflow-hidden"}>
+        {/* 2. HERO */}
         <section className="relative">
           <img
             src="/images/hero.jpg"
@@ -316,7 +365,9 @@ export function Invitation({
             className="hero-fade mx-auto h-[64vh] w-full object-cover object-[center_8%] md:h-[74vh] md:w-auto md:max-w-3xl md:object-contain"
           />
           <div className="relative z-10 -mt-28 px-5 pb-2 text-center">
-            <p className="font-serif text-[11px] tracking-[0.4em] text-gold uppercase">We Are Getting Married</p>
+            <p className="font-serif text-[11px] tracking-[0.4em] text-gold uppercase">
+              We Are Getting Married
+            </p>
             <h2 className="mt-2 font-serif text-4xl text-balance text-[var(--page-ink)] sm:text-5xl">
               {info.groom} & {info.bride}
             </h2>
@@ -329,10 +380,16 @@ export function Invitation({
             <p className="font-arabic text-xl leading-relaxed text-[var(--page-verse)]" dir="rtl">
               {info.arabic}
             </p>
-            <p className="mt-5 text-pretty text-sm leading-relaxed text-[var(--page-soft)] italic">“{info.meaning}”</p>
-            <p className="mt-3 font-serif text-xs tracking-[0.2em] text-gold uppercase">{info.ref}</p>
+            <p className="mt-5 text-pretty text-sm leading-relaxed text-[var(--page-soft)] italic">
+              “{info.meaning}”
+            </p>
+            <p className="mt-3 font-serif text-xs tracking-[0.2em] text-gold uppercase">
+              {info.ref}
+            </p>
             <LeafDivider />
-            <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">Menuju Resepsi</p>
+            <p className="mb-5 font-serif text-sm tracking-[0.25em] text-gold uppercase">
+              Menuju Resepsi
+            </p>
             <div className="grid grid-cols-4 gap-2">
               {(
                 [
@@ -342,17 +399,27 @@ export function Invitation({
                   ["Detik", count.detik],
                 ] as const
               ).map(([label, n]) => (
-                <div key={label} className="rounded-2xl border border-gold/25 bg-cream px-1 py-4 shadow-sm">
+                <div
+                  key={label}
+                  className="rounded-2xl border border-gold/25 bg-cream px-1 py-4 shadow-sm"
+                >
                   <div className="font-serif text-2xl tabular-nums text-sage-dark">{n}</div>
-                  <div className="mt-1 text-[10px] tracking-widest text-muted uppercase">{label}</div>
+                  <div className="mt-1 text-[10px] tracking-widest text-muted uppercase">
+                    {label}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
+        {/* 3. PROFIL */}
         <section className="px-5 py-16">
-          <p className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
+          <p
+            className="mb-10 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
+            data-aos="fade"
+            data-aos-duration="900"
+          >
             The Beloved
           </p>
           <div className="mx-auto grid max-w-3xl gap-10 md:grid-cols-2 md:gap-8">
@@ -372,7 +439,12 @@ export function Invitation({
                 <br />
                 <span className="text-ink">{info.groomParents}</span>
               </p>
-              <a href={info.igGroom} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage">
+              <a
+                href={info.igGroom}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
+              >
                 <i className="fa-brands fa-instagram" />
                 Instagram
               </a>
@@ -385,7 +457,11 @@ export function Invitation({
               data-aos-offset="0"
             >
               <div className="mx-auto h-44 w-36 overflow-hidden rounded-t-full border-4 border-gold/40">
-                <img src="/images/bride.jpg" alt="Saskia" className="h-full w-full object-cover object-top" />
+                <img
+                  src="/images/bride.jpg"
+                  alt="Saskia"
+                  className="h-full w-full object-cover object-top"
+                />
               </div>
               <h3 className="mt-5 font-serif text-3xl text-sage-dark">{info.brideFull}</h3>
               <p className="mt-2 text-sm text-muted">
@@ -393,7 +469,12 @@ export function Invitation({
                 <br />
                 <span className="text-ink">{info.brideParents}</span>
               </p>
-              <a href={info.igBride} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage">
+              <a
+                href={info.igBride}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex min-h-11 items-center gap-2 text-sage"
+              >
                 <i className="fa-brands fa-instagram" />
                 Instagram
               </a>
@@ -401,8 +482,13 @@ export function Invitation({
           </div>
         </section>
 
+        {/* 4. DETAIL ACARA */}
         <section className="px-5 py-16">
-          <p className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
+          <p
+            className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
+            data-aos="fade"
+            data-aos-duration="900"
+          >
             Save The Date
           </p>
           <div className="mx-auto grid max-w-3xl gap-5 md:grid-cols-2">
@@ -430,7 +516,12 @@ export function Invitation({
               <p className="mt-3 text-sm text-ink">{info.dateLabel}</p>
               <p className="text-sm text-muted">{info.resepsiTime}</p>
               <p className="mt-3 text-pretty text-sm text-ink">{info.resepsiVenue}</p>
-              <a href={info.resepsiMaps} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken">
+              <a
+                href={info.resepsiMaps}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-full bg-sage px-5 text-sm text-broken"
+              >
                 <i className="fa-solid fa-location-dot" />
                 Google Maps
               </a>
@@ -438,29 +529,49 @@ export function Invitation({
           </div>
         </section>
 
+        {/* 5. GALERI */}
         <section className="px-5 py-16">
-          <p className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase" data-aos="fade" data-aos-duration="900">
+          <p
+            className="mb-8 text-center font-serif text-xs tracking-[0.35em] text-gold uppercase"
+            data-aos="fade"
+            data-aos-duration="900"
+          >
             Our Gallery
           </p>
           <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3">
             {gallery.map((src, i) => (
               <div
                 key={src}
-                className={cn("overflow-hidden rounded-2xl", i === 0 && "col-span-2 sm:col-span-2 sm:row-span-2")}
+                className={cn(
+                  "overflow-hidden rounded-2xl",
+                  i === 0 && "col-span-2 sm:col-span-2 sm:row-span-2",
+                )}
                 data-aos={i === 0 ? "fade" : i % 2 === 0 ? "fade-left" : "fade-right"}
                 data-aos-anchor-placement="top-center"
                 data-aos-duration="1000"
                 data-aos-offset="0"
               >
-                <img src={src} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110" />
+                <img
+                  src={src}
+                  alt=""
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                />
               </div>
             ))}
           </div>
         </section>
 
+        {/* 6. RSVP */}
         <section className="px-5 py-16">
-          <div className="mx-auto max-w-lg" data-aos="fade" data-aos-duration="1100" data-aos-anchor-placement="top-center">
-            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">RSVP & Ucapan</p>
+          <div
+            className="mx-auto max-w-lg"
+            data-aos="fade"
+            data-aos-duration="1100"
+            data-aos-anchor-placement="top-center"
+          >
+            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">
+              RSVP & Ucapan
+            </p>
             <h3 className="mt-2 text-center font-serif text-3xl text-[var(--page-ink)]">Doa Restu</h3>
             <form onSubmit={kirimUcapan} className="mt-8 space-y-3">
               <input
@@ -506,8 +617,13 @@ export function Invitation({
                 {sendError}
               </p>
             )}
+
             <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
-              {wishes.length === 0 && <li className="text-center text-sm text-[var(--page-soft)]">Belum ada ucapan. Jadilah yang pertama.</li>}
+              {wishes.length === 0 && (
+                <li className="text-center text-sm text-[var(--page-soft)]">
+                  Belum ada ucapan. Jadilah yang pertama.
+                </li>
+              )}
               {wishes.map((w, index) => (
                 <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
                   <div className="flex items-center justify-between gap-2">
@@ -515,6 +631,16 @@ export function Invitation({
                     <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
                   </div>
                   <p className="mt-1 text-sm leading-relaxed text-muted">{w.message}</p>
+                  {mine.includes(w.id) && (
+                    <div className="mt-3 flex gap-2">
+                      <button type="button" onClick={() => void ubahMilik(w)} className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage">
+                        Ubah
+                      </button>
+                      <button type="button" onClick={() => void hapusMilik(w)} className="min-h-9 rounded-full px-3 text-xs text-muted">
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -523,22 +649,34 @@ export function Invitation({
 
         <footer className="bg-sage-dark px-5 py-14 text-center text-broken">
           <p className="text-pretty text-sm italic text-broken/80">
-            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i berkenan hadir dan memberikan doa restu.
+            Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Bapak/Ibu/Saudara/i
+            berkenan hadir dan memberikan doa restu.
           </p>
           <p className="mt-6 font-serif text-2xl">
             {info.groom} & {info.bride}
           </p>
           <LeafDivider />
-          <p className="text-[11px] tracking-[0.22em] text-gold uppercase">by {info.credit}</p>
+          <button type="button" onClick={ketukKredit} className="text-[11px] tracking-[0.22em] text-gold uppercase">
+            by {info.credit}
+          </button>
         </footer>
       </main>
 
+      {opened && admin && (
+        <a
+          href="/kelola"
+          className="fixed top-4 left-4 z-40 inline-flex min-h-11 items-center rounded-full border border-gold/50 bg-sage-dark/90 px-4 text-[10px] tracking-[0.2em] text-gold uppercase"
+        >
+          Kelola
+        </a>
+      )}
       {opened && (
         <div className="fixed right-4 bottom-[4.75rem] z-40">
           <ThemeSwitch theme={theme} onChange={pilihTema} />
         </div>
       )}
 
+      {/* Audio control — kanan bawah */}
       {opened && (
         <button
           type="button"
@@ -546,7 +684,12 @@ export function Invitation({
           className="fixed right-5 bottom-5 z-40 inline-flex min-h-12 min-w-12 items-center justify-center rounded-full border border-gold/50 bg-[var(--disc)] text-gold shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
           aria-label={playing ? "Jeda tilawah" : "Putar tilawah"}
         >
-          <i className={cn("fa-solid fa-compact-disc text-xl", playing && "vinyl-spin")} />
+          <i
+            className={cn(
+              "fa-solid fa-compact-disc text-xl",
+              playing && "vinyl-spin",
+            )}
+          />
         </button>
       )}
     </div>
