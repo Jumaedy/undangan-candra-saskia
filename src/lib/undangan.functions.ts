@@ -219,8 +219,38 @@ export const deleteGuest = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export const listWishes = createServerFn({ method: "GET" }).handler(async () => {
+const WISH_STORE = "https://crudcrud.com/api/5294fc3acdb84b7ea4d5f7d3ce57183d/wishes";
+
+function databaseReady() {
+  return Boolean(process.env.DATABASE_URL?.trim());
+}
+
+async function storeFetch(url: string, init?: RequestInit) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function asWish(row: { _id?: string; id?: string; name?: string; message?: string; attend?: string; at?: number }): Wish | null {
+  if (row.attend !== "Hadir" && row.attend !== "Tidak Hadir") return null;
+  const name = String(row.name ?? "").trim();
+  const message = String(row.message ?? "").trim();
+  if (!name || !message) return null;
+  return {
+    id: String(row._id ?? row.id ?? crypto.randomUUID()),
+    name: name.slice(0, 80),
+    message: message.slice(0, 500),
+    attend: row.attend,
+    at: typeof row.at === "number" ? row.at : Date.now(),
+  };
+}
+
+export const listWishes = createServerFn({ method: "GET" }).handler(async () => {
+  if (databaseReady()) {
     const sql = await getSql();
     const rows = await sql<{ id: string; name: string; message: string; attend: string; at: string }>`
       select id, name, message, attend, created_at::text as at from wishes order by created_at desc
@@ -236,9 +266,14 @@ export const listWishes = createServerFn({ method: "GET" }).handler(async () => 
           at: Date.parse(row.at) || Date.now(),
         }),
       );
-  } catch {
-    return [];
   }
+  const res = await storeFetch(WISH_STORE);
+  if (!res.ok) throw new Error("Daftar ucapan belum bisa dibuka.");
+  const rows = (await res.json()) as Array<Parameters<typeof asWish>[0]>;
+  return rows
+    .map((row) => asWish(row))
+    .filter((row): row is Wish => Boolean(row))
+    .sort((a, b) => b.at - a.at);
 });
 
 export const addWish = createServerFn({ method: "POST" })
@@ -250,12 +285,23 @@ export const addWish = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<Wish> => {
-    const sql = await getSql();
-    const id = crypto.randomUUID();
-    await sql`
-      insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
-    `;
-    return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
+    if (databaseReady()) {
+      const sql = await getSql();
+      const id = crypto.randomUUID();
+      await sql`
+        insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
+      `;
+      return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
+    }
+    const at = Date.now();
+    const res = await storeFetch(WISH_STORE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.name, message: data.message, attend: data.attend, at }),
+    });
+    if (!res.ok) throw new Error("Ucapan belum tersimpan.");
+    const row = (await res.json()) as { _id?: string };
+    return { id: String(row._id ?? crypto.randomUUID()), name: data.name, message: data.message, attend: data.attend, at };
   });
 
 export const deleteWish = createServerFn({ method: "POST" })
@@ -265,5 +311,103 @@ export const deleteWish = createServerFn({ method: "POST" })
     const error = await pinError(sql, data.pin);
     if (error) return { ok: false as const, error };
     await sql`delete from wishes where id = ${data.id}`;
+    return { ok: true as const };
+  });
+
+export const updateGuest = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      pin: z.string().min(1).max(40),
+      id: z.number().int().positive(),
+      name: z.string().trim().min(1).max(80),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const error = await pinError(sql, data.pin);
+    if (error) return { ok: false as const, error };
+    await sql`update guests set name = ${data.name} where id = ${data.id}`;
+    return { ok: true as const };
+  });
+
+export const updateWish = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      pin: z.string().min(1).max(40),
+      id: z.string().min(1).max(80),
+      name: z.string().trim().min(1).max(80),
+      message: z.string().trim().min(1).max(500),
+      attend: z.enum(["Hadir", "Tidak Hadir"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const error = await pinError(sql, data.pin);
+    if (error) return { ok: false as const, error };
+    if (databaseReady()) {
+      await sql`
+        update wishes set name = ${data.name}, message = ${data.message}, attend = ${data.attend}
+        where id = ${data.id}
+      `;
+      return { ok: true as const };
+    }
+    const res = await storeFetch(`${WISH_STORE}/${data.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name,
+        message: data.message,
+        attend: data.attend,
+        at: Date.now(),
+      }),
+    });
+    if (!res.ok) return { ok: false as const, error: "Ucapan belum diubah." };
+    return { ok: true as const };
+  });
+
+/** Guest self-edit: no PIN required (owns id via localStorage). */
+export const updateMyWish = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().min(1).max(80),
+      name: z.string().trim().min(1).max(80),
+      message: z.string().trim().min(1).max(500),
+      attend: z.enum(["Hadir", "Tidak Hadir"]),
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (databaseReady()) {
+      const sql = await getSql();
+      await sql`
+        update wishes set name = ${data.name}, message = ${data.message}, attend = ${data.attend}
+        where id = ${data.id}
+      `;
+      return { ok: true as const };
+    }
+    const res = await storeFetch(`${WISH_STORE}/${data.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: data.name,
+        message: data.message,
+        attend: data.attend,
+        at: Date.now(),
+      }),
+    });
+    if (!res.ok) return { ok: false as const, error: "Ucapan belum diubah." };
+    return { ok: true as const };
+  });
+
+/** Guest self-delete: no PIN required. */
+export const deleteMyWish = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().min(1).max(80) }))
+  .handler(async ({ data }) => {
+    if (databaseReady()) {
+      const sql = await getSql();
+      await sql`delete from wishes where id = ${data.id}`;
+      return { ok: true as const };
+    }
+    const res = await storeFetch(`${WISH_STORE}/${data.id}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 404) return { ok: false as const, error: "Ucapan belum dihapus." };
     return { ok: true as const };
   });
