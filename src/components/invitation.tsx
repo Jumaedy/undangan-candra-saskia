@@ -1,8 +1,6 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, type Wish } from "@/lib/wedding";
-import { addWish, listWishes } from "@/lib/undangan.functions";
+import { WEDDING, deleteSharedWish, fetchSharedWishes, loadMine, loadWishes, postSharedWish, rememberMine, saveWishes, updateSharedWish, type Wish } from "@/lib/wedding";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -124,6 +122,12 @@ export function Invitation({
   const [name, setName] = useState("");
   const [attend, setAttend] = useState<"Hadir" | "Tidak Hadir">("Hadir");
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [mine, setMine] = useState<string[]>([]);
+  const [admin, setAdmin] = useState(false);
+  const pintu = useRef({ n: 0, t: 0 });
 
   useEffect(() => {
     document.body.style.overflow = opened ? "" : "hidden";
@@ -133,6 +137,8 @@ export function Invitation({
   }, [opened]);
 
   useEffect(() => {
+    setMine(loadMine());
+    setAdmin(sessionStorage.getItem("undangan-pintu") === "1");
     const saved = localStorage.getItem("undangan-tema");
     if (saved === "ivory" || saved === "emerald") setTheme(saved);
   }, []);
@@ -150,8 +156,13 @@ export function Invitation({
       });
       AOS.refresh();
     }, 150);
-    setWishes([]);
-    void listWishes().then(setWishes).catch(() => {});
+    setWishes(loadWishes());
+    void fetchSharedWishes()
+      .then((remote) => {
+        setWishes(remote);
+        saveWishes(remote);
+      })
+      .catch(() => {});
     return () => window.clearTimeout(id);
   }, [opened]);
 
@@ -214,14 +225,66 @@ export function Invitation({
 
   async function kirimUcapan(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !message.trim()) return;
-    const saved = await addWish({
-      data: { name: name.trim(), attend, message: message.trim() },
-    });
-    setWishes((prev) => [saved, ...prev]);
-    setName("");
-    setMessage("");
-    setAttend("Hadir");
+    if (sending || !name.trim() || !message.trim()) return;
+    setSending(true);
+    setSent(false);
+    setSendError("");
+    try {
+      const saved = await postSharedWish({
+        name: name.trim(),
+        attend,
+        message: message.trim(),
+      });
+      rememberMine(saved.id);
+      setMine(loadMine());
+      const next = [saved, ...wishes.filter((item) => item.id !== saved.id)];
+      setWishes(next);
+      saveWishes(next);
+      setName("");
+      setMessage("");
+      setAttend("Hadir");
+      setSent(true);
+      window.setTimeout(() => setSent(false), 3400);
+    } catch {
+      setSendError("Belum terkirim. Periksa internet, lalu tekan Kirim lagi.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function ubahMilik(wish: Wish) {
+    const baru = window.prompt("Ubah ucapan Anda:", wish.message);
+    if (baru === null) return;
+    const message = baru.trim();
+    if (!message || message === wish.message) return;
+    const nextWish = { ...wish, message };
+    try {
+      await updateSharedWish(nextWish);
+      setWishes((prev) => prev.map((item) => (item.id === wish.id ? nextWish : item)));
+    } catch {
+      window.alert("Ucapan belum berubah. Coba lagi.");
+    }
+  }
+
+  async function hapusMilik(wish: Wish) {
+    if (!window.confirm("Hapus ucapan ini?")) return;
+    try {
+      await deleteSharedWish(wish.id);
+      setWishes((prev) => prev.filter((item) => item.id !== wish.id));
+    } catch {
+      window.alert("Ucapan belum terhapus. Coba lagi.");
+    }
+  }
+
+  function ketukKredit() {
+    const now = Date.now();
+    if (now - pintu.current.t > 2000) pintu.current.n = 0;
+    pintu.current.t = now;
+    pintu.current.n += 1;
+    if (pintu.current.n >= 5) {
+      pintu.current.n = 0;
+      window.location.href = "/kelola";
+    }
   }
 
   const gallery = [
@@ -531,16 +594,29 @@ export function Invitation({
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Tulis ucapan & doa restu"
                 rows={4}
+                spellCheck={false}
                 className="w-full rounded-2xl border border-gold/25 bg-cream px-4 py-3 text-sm outline-none"
                 required
               />
               <button
                 type="submit"
-                className="min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-gold font-serif text-xs tracking-[0.28em] text-sage-dark uppercase"
+                disabled={sending}
+                className="min-h-11 w-full rounded-full bg-linear-to-r from-[#f3e6c0] to-gold font-serif text-xs tracking-[0.28em] text-sage-dark uppercase shadow-sm transition duration-200 hover:scale-[1.02] hover:shadow-[0_12px_28px_rgba(212,175,55,0.38)] active:scale-[0.98] disabled:opacity-70"
               >
-                Kirim
+                {sending ? "Mengirim..." : "Kirim"}
               </button>
             </form>
+            {sent && (
+              <p className="wish-toast mt-4 flex items-center justify-center gap-2 rounded-2xl bg-sage px-4 py-3 text-sm text-broken" role="status">
+                <i className="fa-solid fa-circle-check text-gold" />
+                Doa restu berhasil terkirim. Terima kasih.
+              </p>
+            )}
+            {sendError && (
+              <p className="mt-4 text-center text-sm text-sage-dark" role="alert">
+                {sendError}
+              </p>
+            )}
 
             <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
               {wishes.length === 0 && (
@@ -548,13 +624,23 @@ export function Invitation({
                   Belum ada ucapan. Jadilah yang pertama.
                 </li>
               )}
-              {wishes.map((w) => (
-                <li key={w.id} className="rounded-2xl border border-gold/15 bg-cream p-4">
+              {wishes.map((w, index) => (
+                <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-serif text-base text-sage-dark">{w.name}</p>
                     <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
                   </div>
                   <p className="mt-1 text-sm leading-relaxed text-muted">{w.message}</p>
+                  {mine.includes(w.id) && (
+                    <div className="mt-3 flex gap-2">
+                      <button type="button" onClick={() => void ubahMilik(w)} className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage">
+                        Ubah
+                      </button>
+                      <button type="button" onClick={() => void hapusMilik(w)} className="min-h-9 rounded-full px-3 text-xs text-muted">
+                        Hapus
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -570,15 +656,20 @@ export function Invitation({
             {info.groom} & {info.bride}
           </p>
           <LeafDivider />
-          <p className="text-[11px] tracking-[0.22em] text-gold uppercase">
+          <button type="button" onClick={ketukKredit} className="text-[11px] tracking-[0.22em] text-gold uppercase">
             by {info.credit}
-          </p>
-          <Link to="/kelola" className="mt-4 inline-block text-[10px] tracking-[0.18em] text-broken/50 uppercase">
-            Kelola
-          </Link>
+          </button>
         </footer>
       </main>
 
+      {opened && admin && (
+        <a
+          href="/kelola"
+          className="fixed top-4 left-4 z-40 inline-flex min-h-11 items-center rounded-full border border-gold/50 bg-sage-dark/90 px-4 text-[10px] tracking-[0.2em] text-gold uppercase"
+        >
+          Kelola
+        </a>
+      )}
       {opened && (
         <div className="fixed right-4 bottom-[4.75rem] z-40">
           <ThemeSwitch theme={theme} onChange={pilihTema} />
