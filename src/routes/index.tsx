@@ -4,11 +4,9 @@ import { getSettings } from "@/lib/undangan.functions";
 import { WEDDING } from "@/lib/wedding";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => {
-    const raw = typeof search.to === "string" ? search.to.trim() : "";
-    const name = raw.replace(/~k$/, "").trim();
-    return { to: name || "Tamu Undangan" };
-  },
+  validateSearch: (search: Record<string, unknown>) => ({
+    to: typeof search.to === "string" && search.to.trim() ? search.to : "Tamu Undangan",
+  }),
   loader: () => getSettings().catch(() => WEDDING),
   component: Home,
 });
