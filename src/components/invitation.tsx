@@ -621,20 +621,23 @@ export function Invitation({
               </p>
             )}
 
+            {/* Hanya tampilkan ucapan milik perangkat ini; daftar lengkap hanya di /kelola (admin) */}
             <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
-              {wishes.length === 0 && (
+              {wishes.filter((w) => mine.includes(w.id)).length === 0 && (
                 <li className="text-center text-sm text-[var(--page-soft)]">
-                  Belum ada ucapan. Jadilah yang pertama.
+                  Ucapan Anda bersifat pribadi. Setelah mengirim, hanya Anda (di perangkat ini) dan
+                  pengelola undangan yang dapat melihatnya.
                 </li>
               )}
-              {wishes.map((w, index) => (
-                <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-serif text-base text-sage-dark">{w.name}</p>
-                    <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
-                  </div>
-                  <p className="mt-1 text-sm leading-relaxed text-muted">{w.message}</p>
-                  {mine.includes(w.id) && (
+              {wishes
+                .filter((w) => mine.includes(w.id))
+                .map((w, index) => (
+                  <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-serif text-base text-sage-dark">{w.name}</p>
+                      <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">{w.message}</p>
                     <div className="mt-3 flex gap-2">
                       <button type="button" onClick={() => void ubahMilik(w)} className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage">
                         Ubah
@@ -643,9 +646,8 @@ export function Invitation({
                         Hapus
                       </button>
                     </div>
-                  )}
-                </li>
-              ))}
+                  </li>
+                ))}
             </ul>
           </div>
         </section>
