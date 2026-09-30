@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, deleteSharedWish, fetchSharedWishes, loadMine, loadWishes, postSharedWish, rememberMine, saveWishes, updateSharedWish, type Wish } from "@/lib/wedding";
+import { WEDDING, loadMine, loadWishes, rememberMine, saveWishes, type Wish } from "@/lib/wedding";
+import { addWish, deleteWishById, listWishes, updateWish } from "@/lib/undangan.functions";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -157,7 +158,7 @@ export function Invitation({
       AOS.refresh();
     }, 150);
     setWishes(loadWishes());
-    void fetchSharedWishes()
+    void listWishes()
       .then((remote) => {
         setWishes(remote);
         saveWishes(remote);
@@ -230,10 +231,12 @@ export function Invitation({
     setSent(false);
     setSendError("");
     try {
-      const saved = await postSharedWish({
-        name: name.trim(),
-        attend,
-        message: message.trim(),
+      const saved = await addWish({
+        data: {
+          name: name.trim(),
+          attend,
+          message: message.trim(),
+        },
       });
       rememberMine(saved.id);
       setMine(loadMine());
@@ -259,7 +262,7 @@ export function Invitation({
     if (!message || message === wish.message) return;
     const nextWish = { ...wish, message };
     try {
-      await updateSharedWish(nextWish);
+      await updateWish({ data: { id: wish.id, message: nextWish.message } });
       setWishes((prev) => prev.map((item) => (item.id === wish.id ? nextWish : item)));
     } catch {
       window.alert("Ucapan belum berubah. Coba lagi.");
@@ -269,7 +272,7 @@ export function Invitation({
   async function hapusMilik(wish: Wish) {
     if (!window.confirm("Hapus ucapan ini?")) return;
     try {
-      await deleteSharedWish(wish.id);
+      await deleteWishById({ data: { id: wish.id } });
       setWishes((prev) => prev.filter((item) => item.id !== wish.id));
     } catch {
       window.alert("Ucapan belum terhapus. Coba lagi.");
