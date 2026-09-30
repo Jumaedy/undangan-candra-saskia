@@ -715,7 +715,7 @@ export function Invitation({
                 <i className="fa-solid fa-circle-check text-gold" />
                 Doa restu berhasil terkirim. Terima kasih.
               </p>
-            )
+            )}
             {sendError && (
               <p className="mt-4 text-center text-sm text-sage-dark" role="alert">
                 {sendError}
