@@ -32,7 +32,7 @@ export type Wish = {
   attend: "Hadir" | "Tidak Hadir";
   at: number;
   parentId?: string | null;
-  likes: number;
+  likes?: number;
 };
 
 const KEY = "candra-fulanah-wishes-v2";
