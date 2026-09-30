@@ -157,6 +157,7 @@ export function Invitation({
       });
       AOS.refresh();
     }, 150);
+    setMine(loadMine());
     setWishes(loadWishes());
     void listWishes()
       .then((remote) => {
@@ -621,34 +622,72 @@ export function Invitation({
               </p>
             )}
 
-            {/* Hanya tampilkan ucapan milik perangkat ini; daftar lengkap hanya di /kelola (admin) */}
-            <ul className="mt-8 max-h-80 space-y-3 overflow-y-auto">
-              {wishes.filter((w) => mine.includes(w.id)).length === 0 && (
-                <li className="text-center text-sm text-[var(--page-soft)]">
-                  Ucapan Anda bersifat pribadi. Setelah mengirim, hanya Anda (di perangkat ini) dan
-                  pengelola undangan yang dapat melihatnya.
-                </li>
-              )}
-              {wishes
-                .filter((w) => mine.includes(w.id))
-                .map((w, index) => (
-                  <li key={w.id} className={cn("rounded-2xl border border-gold/15 bg-cream p-4", index === 0 && sent && "wish-card-in")}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-serif text-base text-sage-dark">{w.name}</p>
-                      <span className="text-[10px] tracking-wide text-gold uppercase">{w.attend}</span>
+            <div className="mt-8">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <p className="text-[10px] tracking-[0.22em] text-gold uppercase">Kolom ucapan</p>
+                <p className="text-xs text-[var(--page-soft)]">{wishes.length} ucapan</p>
+              </div>
+              <ul className="max-h-96 space-y-3 overflow-y-auto pr-1">
+                {wishes.length === 0 && (
+                  <li className="rounded-2xl border border-dashed border-gold/30 bg-cream/50 px-4 py-8 text-center text-sm text-[var(--page-soft)]">
+                    Belum ada ucapan. Jadilah yang pertama memberi doa restu.
+                  </li>
+                )}
+                {wishes.map((w, index) => (
+                  <li
+                    key={w.id}
+                    className={cn(
+                      "rounded-2xl border border-gold/15 bg-cream p-4 shadow-sm",
+                      index === 0 && sent && "wish-card-in",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-serif text-base text-sage-dark">{w.name}</p>
+                        <p className="mt-0.5 text-[10px] text-[var(--page-soft)]">
+                          {new Date(w.at).toLocaleString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] tracking-wide uppercase",
+                          w.attend === "Hadir"
+                            ? "bg-sage/15 text-sage"
+                            : "bg-gold/15 text-gold",
+                        )}
+                      >
+                        {w.attend}
+                      </span>
                     </div>
-                    <p className="mt-1 text-sm leading-relaxed text-muted">{w.message}</p>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => void ubahMilik(w)} className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage">
-                        Ubah
-                      </button>
-                      <button type="button" onClick={() => void hapusMilik(w)} className="min-h-9 rounded-full px-3 text-xs text-muted">
-                        Hapus
-                      </button>
-                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{w.message}</p>
+                    {mine.includes(w.id) && (
+                      <div className="mt-3 flex gap-2 border-t border-gold/10 pt-3">
+                        <button
+                          type="button"
+                          onClick={() => void ubahMilik(w)}
+                          className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage"
+                        >
+                          Ubah
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void hapusMilik(w)}
+                          className="min-h-9 rounded-full px-3 text-xs text-muted"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
-            </ul>
+              </ul>
+            </div>
           </div>
         </section>
 
