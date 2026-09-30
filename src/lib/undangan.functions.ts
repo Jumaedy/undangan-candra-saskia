@@ -120,10 +120,21 @@ export const getSettings = createServerFn({ method: "GET" }).handler(async () =>
   }
 });
 
+/** PIN default admin — disimpan sebagai hash di tabel admin_lock saat pertama kali. */
+const DEFAULT_ADMIN_PIN = "istigfar8888";
+
 export const pinStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const sql = await getSql();
-  const rows = await sql<{ n: number }>`select count(*)::int as n from admin_lock`;
-  return { ready: Number(rows[0]?.n ?? 0) > 0 };
+  try {
+    const sql = await getSql();
+    const rows = await sql<{ n: number }>`select count(*)::int as n from admin_lock`;
+    if (Number(rows[0]?.n ?? 0) === 0) {
+      const pinHash = await hashPin(DEFAULT_ADMIN_PIN);
+      await sql`insert into admin_lock (id, pin_hash) values (1, ${pinHash}) on conflict (id) do nothing`;
+    }
+    return { ready: true as const };
+  } catch {
+    return { ready: false as const };
+  }
 });
 
 export const setupPin = createServerFn({ method: "POST" })
@@ -219,61 +230,57 @@ export const deleteGuest = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-const WISH_STORE = "https://crudcrud.com/api/5294fc3acdb84b7ea4d5f7d3ce57183d/wishes";
+export const updateGuest = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      pin: z.string().min(1).max(40),
+      id: z.number().int().positive(),
+      name: z.string().trim().min(1).max(80),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const error = await pinError(sql, data.pin);
+    if (error) return { ok: false as const, error };
+    await sql`update guests set name = ${data.name} where id = ${data.id}`;
+    return { ok: true as const };
+  });
 
-function databaseReady() {
-  return Boolean(process.env.DATABASE_URL?.trim());
-}
+export const deleteGuestsBulk = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      pin: z.string().min(1).max(40),
+      ids: z.array(z.number().int().positive()).min(1).max(200),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const error = await pinError(sql, data.pin);
+    if (error) return { ok: false as const, error };
+    for (const id of data.ids) {
+      await sql`delete from guests where id = ${id}`;
+    }
+    return { ok: true as const };
+  });
 
-async function storeFetch(url: string, init?: RequestInit) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
-  try {
-    return await fetch(url, { ...init, signal: ctrl.signal });
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function asWish(row: { _id?: string; id?: string; name?: string; message?: string; attend?: string; at?: number }): Wish | null {
-  if (row.attend !== "Hadir" && row.attend !== "Tidak Hadir") return null;
-  const name = String(row.name ?? "").trim();
-  const message = String(row.message ?? "").trim();
-  if (!name || !message) return null;
-  return {
-    id: String(row._id ?? row.id ?? crypto.randomUUID()),
-    name: name.slice(0, 80),
-    message: message.slice(0, 500),
-    attend: row.attend,
-    at: typeof row.at === "number" ? row.at : Date.now(),
-  };
-}
+/** Semua doa/ucapan & tamu disimpan di Postgres (Neon di Vercel, PGLite lokal). */
 
 export const listWishes = createServerFn({ method: "GET" }).handler(async () => {
-  if (databaseReady()) {
-    const sql = await getSql();
-    const rows = await sql<{ id: string; name: string; message: string; attend: string; at: string }>`
-      select id, name, message, attend, created_at::text as at from wishes order by created_at desc
-    `;
-    return rows
-      .filter((row) => row.attend === "Hadir" || row.attend === "Tidak Hadir")
-      .map(
-        (row): Wish => ({
-          id: row.id,
-          name: row.name,
-          message: row.message,
-          attend: row.attend as Wish["attend"],
-          at: Date.parse(row.at) || Date.now(),
-        }),
-      );
-  }
-  const res = await storeFetch(WISH_STORE);
-  if (!res.ok) throw new Error("Daftar ucapan belum bisa dibuka.");
-  const rows = (await res.json()) as Array<Parameters<typeof asWish>[0]>;
+  const sql = await getSql();
+  const rows = await sql<{ id: string; name: string; message: string; attend: string; at: string }>`
+    select id, name, message, attend, created_at::text as at from wishes order by created_at desc
+  `;
   return rows
-    .map((row) => asWish(row))
-    .filter((row): row is Wish => Boolean(row))
-    .sort((a, b) => b.at - a.at);
+    .filter((row) => row.attend === "Hadir" || row.attend === "Tidak Hadir")
+    .map(
+      (row): Wish => ({
+        id: row.id,
+        name: row.name,
+        message: row.message,
+        attend: row.attend as Wish["attend"],
+        at: Date.parse(row.at) || Date.now(),
+      }),
+    );
 });
 
 export const addWish = createServerFn({ method: "POST" })
@@ -285,25 +292,15 @@ export const addWish = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }): Promise<Wish> => {
-    if (databaseReady()) {
-      const sql = await getSql();
-      const id = crypto.randomUUID();
-      await sql`
-        insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
-      `;
-      return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
-    }
-    const at = Date.now();
-    const res = await storeFetch(WISH_STORE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: data.name, message: data.message, attend: data.attend, at }),
-    });
-    if (!res.ok) throw new Error("Ucapan belum tersimpan.");
-    const row = (await res.json()) as { _id?: string };
-    return { id: String(row._id ?? crypto.randomUUID()), name: data.name, message: data.message, attend: data.attend, at };
+    const sql = await getSql();
+    const id = crypto.randomUUID();
+    await sql`
+      insert into wishes (id, name, message, attend) values (${id}, ${data.name}, ${data.message}, ${data.attend})
+    `;
+    return { id, name: data.name, message: data.message, attend: data.attend, at: Date.now() };
   });
 
+/** Admin menghapus ucapan (butuh PIN). */
 export const deleteWish = createServerFn({ method: "POST" })
   .validator(z.object({ pin: z.string().min(1).max(40), id: z.string().min(1).max(80) }))
   .handler(async ({ data }) => {
@@ -311,5 +308,32 @@ export const deleteWish = createServerFn({ method: "POST" })
     const error = await pinError(sql, data.pin);
     if (error) return { ok: false as const, error };
     await sql`delete from wishes where id = ${data.id}`;
+    return { ok: true as const };
+  });
+
+/** Tamu menghapus ucapan miliknya (id UUID sulit ditebak). */
+export const deleteWishById = createServerFn({ method: "POST" })
+  .validator(z.object({ id: z.string().uuid() }))
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    await sql`delete from wishes where id = ${data.id}`;
+    return { ok: true as const };
+  });
+
+export const updateWish = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().min(1).max(80),
+      message: z.string().trim().min(1).max(500),
+      pin: z.string().min(1).max(40).optional(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    if (data.pin) {
+      const error = await pinError(sql, data.pin);
+      if (error) return { ok: false as const, error };
+    }
+    await sql`update wishes set message = ${data.message} where id = ${data.id}`;
     return { ok: true as const };
   });
