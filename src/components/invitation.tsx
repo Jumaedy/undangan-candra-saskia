@@ -133,7 +133,8 @@ export function Invitation({
   const [replyMessage, setReplyMessage] = useState("");
   const [replySending, setReplySending] = useState(false);
   const [admin, setAdmin] = useState(false);
-  const [rekeningCopied, setRekeningCopied] = useState(false);
+  const [giftOpen, setGiftOpen] = useState<"transfer" | "gift" | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
   const pintu = useRef({ n: 0, t: 0 });
 
   useEffect(() => {
@@ -337,16 +338,22 @@ export function Invitation({
     }
   }
 
-  async function salinRekening() {
-    const nomor = "718301011922537";
+  async function salinTeks(value: string, field: string) {
     try {
-      await navigator.clipboard.writeText(nomor);
-      setRekeningCopied(true);
-      window.setTimeout(() => setRekeningCopied(false), 2500);
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      window.setTimeout(() => setCopiedField(null), 2500);
     } catch {
-      window.prompt("Salin nomor rekening:", nomor);
+      window.prompt("Salin:", value);
     }
   }
+
+  /** Ganti nomor WA di sini */
+  const GIFT_WA = "085243168705";
+  const GIFT_BANK = "BRI";
+  const GIFT_REK = "718301011922537";
+  const GIFT_AN = "CANDRA";
+  const GIFT_ALAMAT = info.resepsiVenue;
 
   const gallery = [
     "/images/hero.jpg",
@@ -622,7 +629,7 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 6. REKENING / HADIAH */}
+        {/* 6. LOVE GIFT */}
         <section className="px-5 py-16">
           <div
             className="mx-auto max-w-lg"
@@ -630,37 +637,159 @@ export function Invitation({
             data-aos-duration="1000"
             data-aos-anchor-placement="top-center"
           >
-            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">
-              Wedding Gift
-            </p>
-            <h3 className="mt-2 text-center font-serif text-3xl text-[var(--page-ink)]">
-              Amplop Digital
+            <h3 className="text-center font-serif text-4xl italic text-[var(--page-ink)]">
+              Love Gift
             </h3>
-            <p className="mt-3 text-center text-sm leading-relaxed text-[var(--page-soft)]">
-              Doa restu Anda merupakan hadiah terindah. Jika berkenan memberikan tanda kasih,
-              dapat melalui rekening berikut.
+            <p className="mx-auto mt-3 max-w-sm text-center text-sm leading-relaxed text-[var(--page-soft)]">
+              Dengan hormat, bagi Anda yang ingin memberikan tanda kasih kepada kami, dapat
+              melalui:
             </p>
-            <div className="mt-8 rounded-3xl border border-gold/25 bg-cream p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#003d79] text-sm font-bold tracking-wide text-white">
-                  BRI
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] tracking-[0.2em] text-gold uppercase">Bank Rakyat Indonesia</p>
-                  <p className="mt-0.5 font-serif text-lg text-sage-dark">a.n. CANDRA</p>
+
+            <div className="mt-8 space-y-3">
+              {/* Transfer */}
+              <div className="overflow-hidden rounded-2xl border border-gold/20 bg-cream/90 shadow-sm transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => setGiftOpen((v) => (v === "transfer" ? null : "transfer"))}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sage/10 text-sage-dark">
+                    <i className="fa-solid fa-building-columns" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-[var(--page-ink)]">Transfer</span>
+                    <span className="block text-xs text-[var(--page-soft)]">a.n. {GIFT_AN}</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] tracking-wide uppercase transition",
+                      giftOpen === "transfer"
+                        ? "border-sage bg-sage text-broken"
+                        : "border-gold/40 text-gold",
+                    )}
+                  >
+                    <i className="fa-solid fa-circle-info" />
+                    Info
+                  </span>
+                </button>
+                <div
+                  className={cn(
+                    "grid transition-all duration-300 ease-out",
+                    giftOpen === "transfer" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                  )}
+                >
+                  <div className="overflow-hidden">
+                    <div className="space-y-2 border-t border-gold/15 px-4 py-3">
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] tracking-wide text-gold uppercase">Bank</p>
+                          <p className="font-medium text-sage-dark">{GIFT_BANK} — Bank Rakyat Indonesia</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] tracking-wide text-gold uppercase">No. Rekening</p>
+                          <p className="font-serif text-lg tabular-nums tracking-wide text-sage-dark">
+                            {GIFT_REK.replace(/(\d{4})(?=\d)/g, "$1 ").trim()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void salinTeks(GIFT_REK, "rek")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/30 text-sage-dark"
+                          aria-label="Salin nomor rekening"
+                        >
+                          <i className={copiedField === "rek" ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] tracking-wide text-gold uppercase">Atas nama</p>
+                          <p className="font-medium text-sage-dark">{GIFT_AN}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <p className="mt-5 text-center font-serif text-2xl tracking-[0.12em] tabular-nums text-sage-dark">
-                7183 0101 1922 537
-              </p>
-              <button
-                type="button"
-                onClick={() => void salinRekening()}
-                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-sage text-sm text-broken transition active:scale-[0.98]"
-              >
-                <i className={rekeningCopied ? "fa-solid fa-check" : "fa-regular fa-copy"} />
-                {rekeningCopied ? "Nomor tersalin" : "Salin Nomor Rekening"}
-              </button>
+
+              {/* Gift / kirim hadiah */}
+              <div className="overflow-hidden rounded-2xl border border-gold/20 bg-cream/90 shadow-sm transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => setGiftOpen((v) => (v === "gift" ? null : "gift"))}
+                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sage/10 text-sage-dark">
+                    <i className="fa-solid fa-gift" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-[var(--page-ink)]">Gift</span>
+                    <span className="block text-xs text-[var(--page-soft)]">a.n. {GIFT_AN}</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] tracking-wide uppercase transition",
+                      giftOpen === "gift"
+                        ? "border-sage bg-sage text-broken"
+                        : "border-gold/40 text-gold",
+                    )}
+                  >
+                    <i className="fa-solid fa-circle-info" />
+                    Info
+                  </span>
+                </button>
+                <div
+                  className={cn(
+                    "grid transition-all duration-300 ease-out",
+                    giftOpen === "gift" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                  )}
+                >
+                  <div className="overflow-hidden">
+                    <div className="space-y-2 border-t border-gold/15 px-4 py-3">
+                      <div className="flex items-center justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] tracking-wide text-gold uppercase">WhatsApp</p>
+                          <p className="font-medium tabular-nums text-sage-dark">{GIFT_WA}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void salinTeks(GIFT_WA, "wa")}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/30 text-sage-dark"
+                          aria-label="Salin nomor WhatsApp"
+                        >
+                          <i className={copiedField === "wa" ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                        </button>
+                      </div>
+                      <div className="flex items-start justify-between gap-2 rounded-xl bg-white/60 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-[10px] tracking-wide text-gold uppercase">Alamat kirim</p>
+                          <p className="text-sm leading-snug text-sage-dark">{GIFT_ALAMAT}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => void salinTeks(GIFT_ALAMAT, "alamat")}
+                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/30 text-sage-dark"
+                          aria-label="Salin alamat"
+                        >
+                          <i className={copiedField === "alamat" ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                        </button>
+                      </div>
+                      {info.resepsiMaps ? (
+                        <a
+                          href={info.resepsiMaps}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex min-h-10 items-center justify-center gap-2 rounded-full border border-gold/30 text-xs text-sage-dark"
+                        >
+                          <i className="fa-solid fa-location-dot text-gold" />
+                          Buka di Maps
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
