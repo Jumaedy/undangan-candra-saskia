@@ -19,7 +19,7 @@ function useCountdown(iso: string) {
     jam: Math.floor((s % 86400) / 3600),
     menit: Math.floor((s % 3600) / 60),
     detik: s % 60,
-  };}
+  };
 }
 
 type ThemeId = "emerald" | "ivory";
