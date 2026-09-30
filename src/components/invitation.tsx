@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AOS from "aos";
-import { WEDDING, loadMine, loadWishes, rememberMine, saveWishes, type Wish } from "@/lib/wedding";
-import { addWish, deleteWishById, listWishes, updateWish } from "@/lib/undangan.functions";
+import { WEDDING, loadLiked, loadMine, loadWishes, rememberLiked, rememberMine, saveWishes, type Wish } from "@/lib/wedding";
+import { addWish, deleteWishById, likeWish, listWishes, updateWish } from "@/lib/undangan.functions";
 import { cn } from "@/lib/utils";
 
 function useCountdown(iso: string) {
@@ -127,6 +127,11 @@ export function Invitation({
   const [sent, setSent] = useState(false);
   const [sendError, setSendError] = useState("");
   const [mine, setMine] = useState<string[]>([]);
+  const [liked, setLiked] = useState<string[]>([]);
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+  const [replyName, setReplyName] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+  const [replySending, setReplySending] = useState(false);
   const [admin, setAdmin] = useState(false);
   const pintu = useRef({ n: 0, t: 0 });
 
@@ -139,6 +144,7 @@ export function Invitation({
 
   useEffect(() => {
     setMine(loadMine());
+    setLiked(loadLiked());
     setAdmin(sessionStorage.getItem("undangan-pintu") === "1");
     const saved = localStorage.getItem("undangan-tema");
     if (saved === "ivory" || saved === "emerald") setTheme(saved);
@@ -274,9 +280,48 @@ export function Invitation({
     if (!window.confirm("Hapus ucapan ini?")) return;
     try {
       await deleteWishById({ data: { id: wish.id } });
-      setWishes((prev) => prev.filter((item) => item.id !== wish.id));
+      setWishes((prev) => prev.filter((item) => item.id !== wish.id && item.parentId !== wish.id));
     } catch {
       window.alert("Ucapan belum terhapus. Coba lagi.");
+    }
+  }
+
+  async function toggleLike(wish: Wish) {
+    if (liked.includes(wish.id)) return; // satu perangkat sekali like
+    try {
+      const res = await likeWish({ data: { id: wish.id } });
+      rememberLiked(wish.id);
+      setLiked(loadLiked());
+      setWishes((prev) =>
+        prev.map((item) => (item.id === wish.id ? { ...item, likes: res.likes } : item)),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function kirimBalasan(parentId: string) {
+    if (replySending || !replyName.trim() || !replyMessage.trim()) return;
+    setReplySending(true);
+    try {
+      const saved = await addWish({
+        data: {
+          name: replyName.trim(),
+          message: replyMessage.trim(),
+          attend: "Hadir",
+          parentId,
+        },
+      });
+      rememberMine(saved.id);
+      setMine(loadMine());
+      setWishes((prev) => [saved, ...prev]);
+      setReplyTo(null);
+      setReplyName("");
+      setReplyMessage("");
+    } catch {
+      window.alert("Balasan belum terkirim. Coba lagi.");
+    } finally {
+      setReplySending(false);
     }
   }
 
@@ -625,68 +670,176 @@ export function Invitation({
             <div className="mt-8">
               <div className="mb-4 flex items-center justify-between gap-2">
                 <p className="text-[10px] tracking-[0.22em] text-gold uppercase">Kolom ucapan</p>
-                <p className="text-xs text-[var(--page-soft)]">{wishes.length} ucapan</p>
+                <p className="text-xs text-[var(--page-soft)]">
+                  {wishes.filter((w) => !w.parentId).length} ucapan
+                </p>
               </div>
-              <ul className="max-h-96 space-y-3 overflow-y-auto pr-1">
-                {wishes.length === 0 && (
+              <ul className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
+                {wishes.filter((w) => !w.parentId).length === 0 && (
                   <li className="rounded-2xl border border-dashed border-gold/30 bg-cream/50 px-4 py-8 text-center text-sm text-[var(--page-soft)]">
                     Belum ada ucapan. Jadilah yang pertama memberi doa restu.
                   </li>
                 )}
-                {wishes.map((w, index) => (
-                  <li
-                    key={w.id}
-                    className={cn(
-                      "rounded-2xl border border-gold/15 bg-cream p-4 shadow-sm",
-                      index === 0 && sent && "wish-card-in",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-serif text-base text-sage-dark">{w.name}</p>
-                        <p className="mt-0.5 text-[10px] text-[var(--page-soft)]">
-                          {new Date(w.at).toLocaleString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                      <span
+                {wishes
+                  .filter((w) => !w.parentId)
+                  .map((w, index) => {
+                    const replies = wishes
+                      .filter((r) => r.parentId === w.id)
+                      .sort((a, b) => a.at - b.at);
+                    const alreadyLiked = liked.includes(w.id);
+                    return (
+                      <li
+                        key={w.id}
                         className={cn(
-                          "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] tracking-wide uppercase",
-                          w.attend === "Hadir"
-                            ? "bg-sage/15 text-sage"
-                            : "bg-gold/15 text-gold",
+                          "rounded-2xl border border-gold/15 bg-cream p-4 shadow-sm",
+                          index === 0 && sent && "wish-card-in",
                         )}
                       >
-                        {w.attend}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{w.message}</p>
-                    {mine.includes(w.id) && (
-                      <div className="mt-3 flex gap-2 border-t border-gold/10 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => void ubahMilik(w)}
-                          className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage"
-                        >
-                          Ubah
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void hapusMilik(w)}
-                          className="min-h-9 rounded-full px-3 text-xs text-muted"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    )}
-                  </li>
-                ))}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-serif text-base text-sage-dark">{w.name}</p>
+                            <p className="mt-0.5 text-[10px] text-[var(--page-soft)]">
+                              {new Date(w.at).toLocaleString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] tracking-wide uppercase",
+                              w.attend === "Hadir" ? "bg-sage/15 text-sage" : "bg-gold/15 text-gold",
+                            )}
+                          >
+                            {w.attend}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">{w.message}</p>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void toggleLike(w)}
+                            className={cn(
+                              "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs",
+                              alreadyLiked
+                                ? "border-rose-300/60 bg-rose-50 text-rose-600"
+                                : "border-gold/30 text-muted",
+                            )}
+                            aria-label="Suka"
+                          >
+                            <i className={alreadyLiked ? "fa-solid fa-heart" : "fa-regular fa-heart"} />
+                            {w.likes || 0}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReplyTo(replyTo === w.id ? null : w.id)}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-gold/30 px-3 text-xs text-muted"
+                          >
+                            <i className="fa-solid fa-reply" />
+                            Reply
+                          </button>
+                          {mine.includes(w.id) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void ubahMilik(w)}
+                                className="min-h-9 rounded-full border border-gold/40 px-3 text-xs text-sage"
+                              >
+                                Ubah
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void hapusMilik(w)}
+                                className="min-h-9 rounded-full px-3 text-xs text-muted"
+                              >
+                                Hapus
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {replies.length > 0 && (
+                          <ul className="mt-3 space-y-2 border-l-2 border-gold/20 pl-3">
+                            {replies.map((r) => (
+                              <li key={r.id} className="rounded-xl bg-white/60 p-3">
+                                <p className="font-serif text-sm text-sage-dark">{r.name}</p>
+                                <p className="mt-1 text-sm text-muted">{r.message}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void toggleLike(r)}
+                                    className={cn(
+                                      "inline-flex items-center gap-1 text-xs",
+                                      liked.includes(r.id) ? "text-rose-600" : "text-muted",
+                                    )}
+                                  >
+                                    <i className={liked.includes(r.id) ? "fa-solid fa-heart" : "fa-regular fa-heart"} />
+                                    {r.likes || 0}
+                                  </button>
+                                  {mine.includes(r.id) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void hapusMilik(r)}
+                                      className="text-xs text-muted"
+                                    >
+                                      Hapus
+                                    </button>
+                                  )}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {replyTo === w.id && (
+                          <div className="mt-3 rounded-2xl border border-gold/20 bg-white/70 p-3">
+                            <p className="mb-2 text-[10px] tracking-wide text-gold uppercase">
+                              Balas {w.name}
+                            </p>
+                            <input
+                              value={replyName}
+                              onChange={(e) => setReplyName(e.target.value)}
+                              placeholder="Nama Anda"
+                              className="mb-2 w-full rounded-xl border border-gold/25 bg-cream px-3 py-2 text-sm outline-none"
+                            />
+                            <textarea
+                              value={replyMessage}
+                              onChange={(e) => setReplyMessage(e.target.value)}
+                              rows={2}
+                              placeholder="Tulis balasan..."
+                              className="w-full rounded-xl border border-gold/25 bg-cream px-3 py-2 text-sm outline-none"
+                            />
+                            <div className="mt-2 flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReplyTo(null);
+                                  setReplyMessage("");
+                                }}
+                                className="min-h-9 rounded-full px-3 text-xs text-muted"
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                disabled={replySending}
+                                onClick={() => void kirimBalasan(w.id)}
+                                className="min-h-9 rounded-full bg-sage px-4 text-xs text-broken disabled:opacity-60"
+                              >
+                                {replySending ? "Mengirim..." : "Kirim"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
               </ul>
+            </div>
             </div>
           </div>
         </section>
