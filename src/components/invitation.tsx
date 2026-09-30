@@ -19,7 +19,7 @@ function useCountdown(iso: string) {
     jam: Math.floor((s % 86400) / 3600),
     menit: Math.floor((s % 3600) / 60),
     detik: s % 60,
-  };
+  };}
 }
 
 type ThemeId = "emerald" | "ivory";
@@ -133,6 +133,7 @@ export function Invitation({
   const [replyMessage, setReplyMessage] = useState("");
   const [replySending, setReplySending] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const [rekeningCopied, setRekeningCopied] = useState(false);
   const pintu = useRef({ n: 0, t: 0 });
 
   useEffect(() => {
@@ -333,6 +334,17 @@ export function Invitation({
     if (pintu.current.n >= 5) {
       pintu.current.n = 0;
       window.location.href = "/kelola";
+    }
+  }
+
+  async function salinRekening() {
+    const nomor = "718301011922537";
+    try {
+      await navigator.clipboard.writeText(nomor);
+      setRekeningCopied(true);
+      window.setTimeout(() => setRekeningCopied(false), 2500);
+    } catch {
+      window.prompt("Salin nomor rekening:", nomor);
     }
   }
 
@@ -610,7 +622,50 @@ export function Invitation({
           </div>
         </section>
 
-        {/* 6. RSVP */}
+        {/* 6. REKENING / HADIAH */}
+        <section className="px-5 py-16">
+          <div
+            className="mx-auto max-w-lg"
+            data-aos="fade"
+            data-aos-duration="1000"
+            data-aos-anchor-placement="top-center"
+          >
+            <p className="text-center font-serif text-xs tracking-[0.35em] text-gold uppercase">
+              Wedding Gift
+            </p>
+            <h3 className="mt-2 text-center font-serif text-3xl text-[var(--page-ink)]">
+              Amplop Digital
+            </h3>
+            <p className="mt-3 text-center text-sm leading-relaxed text-[var(--page-soft)]">
+              Doa restu Anda merupakan hadiah terindah. Jika berkenan memberikan tanda kasih,
+              dapat melalui rekening berikut.
+            </p>
+            <div className="mt-8 rounded-3xl border border-gold/25 bg-cream p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#003d79] text-sm font-bold tracking-wide text-white">
+                  BRI
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] tracking-[0.2em] text-gold uppercase">Bank Rakyat Indonesia</p>
+                  <p className="mt-0.5 font-serif text-lg text-sage-dark">a.n. CANDRA</p>
+                </div>
+              </div>
+              <p className="mt-5 text-center font-serif text-2xl tracking-[0.12em] tabular-nums text-sage-dark">
+                7183 0101 1922 537
+              </p>
+              <button
+                type="button"
+                onClick={() => void salinRekening()}
+                className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-sage text-sm text-broken transition active:scale-[0.98]"
+              >
+                <i className={rekeningCopied ? "fa-solid fa-check" : "fa-regular fa-copy"} />
+                {rekeningCopied ? "Nomor tersalin" : "Salin Nomor Rekening"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* 7. RSVP */}
         <section className="px-5 py-16">
           <div
             className="mx-auto max-w-lg"
@@ -660,7 +715,7 @@ export function Invitation({
                 <i className="fa-solid fa-circle-check text-gold" />
                 Doa restu berhasil terkirim. Terima kasih.
               </p>
-            )}
+            )
             {sendError && (
               <p className="mt-4 text-center text-sm text-sage-dark" role="alert">
                 {sendError}
