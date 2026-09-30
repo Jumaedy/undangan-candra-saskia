@@ -31,12 +31,14 @@ export type Wish = {
   message: string;
   attend: "Hadir" | "Tidak Hadir";
   at: number;
+  parentId?: string | null;
+  likes: number;
 };
 
 const KEY = "candra-fulanah-wishes-v2";
 const MINE_KEY = "undangan-ucapan-saya";
+const LIKED_KEY = "undangan-ucapan-liked";
 
-/** Cache lokal saja — data utama di database (Neon / PGLite). */
 export function loadWishes(): Wish[] {
   if (typeof window === "undefined") return [];
   try {
@@ -66,4 +68,20 @@ export function loadMine(): string[] {
 export function rememberMine(id: string) {
   const next = [id, ...loadMine().filter((item) => item !== id)];
   localStorage.setItem(MINE_KEY, JSON.stringify(next));
+}
+
+export function loadLiked(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LIKED_KEY);
+    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function rememberLiked(id: string) {
+  const next = [id, ...loadLiked().filter((item) => item !== id)];
+  localStorage.setItem(LIKED_KEY, JSON.stringify(next));
 }
