@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import AOS from "aos";
 import { WEDDING, loadLiked, loadMine, loadWishes, rememberLiked, rememberMine, saveWishes, type Wish } from "@/lib/wedding";
 import { addWish, deleteWishById, likeWish, listWishes, updateWish } from "@/lib/undangan.functions";
@@ -232,7 +232,7 @@ export function Invitation({
     }
   }
 
-  async function kirimUcapan(e: React.FormEvent) {
+  async function kirimUcapan(e: FormEvent) {
     e.preventDefault();
     if (sending || !name.trim() || !message.trim()) return;
     setSending(true);
