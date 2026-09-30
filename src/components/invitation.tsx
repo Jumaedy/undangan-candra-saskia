@@ -841,7 +841,6 @@ export function Invitation({
               </ul>
             </div>
             </div>
-          </div>
         </section>
 
         <footer className="bg-sage-dark px-5 py-14 text-center text-broken">
